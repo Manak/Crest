@@ -4389,6 +4389,14 @@
     "smooth-appearance-previews": {
       "category": "fixed",
       "message": "Dragging an Appearance setting, such as the window border, material, Space icon size or the tab and address field colors, no longer slows the whole app down."
+    },
+    "downloads-drag-out-as-files": {
+      "category": "new",
+      "message": "Finished downloads can be dragged out of the Downloads list and dropped into Finder or another app, like any file."
+    },
+    "sidebar-lists-button-choice": {
+      "category": "new",
+      "message": "Right-click the lists button at the bottom of the sidebar to choose whether it opens Archive, History or Downloads."
     }
   }
 }

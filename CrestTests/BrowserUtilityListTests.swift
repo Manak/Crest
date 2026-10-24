@@ -410,20 +410,23 @@ final class BrowserUtilityListTests: XCTestCase {
     }
 
     @MainActor
-    func testCommonListTriggerRestoresTheLastSurfaceAcrossPresentationStates() throws {
+    func testCommonListTriggerKeepsItsChosenSurfaceAcrossPresentationStates() throws {
         let suiteName = "crest.tests.utility-presentation.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let first = BrowserUtilityPresentationState(defaults: defaults)
 
+        first.chooseTriggerSurface(.downloads)
+        // Picking another list from the fan leaves the button's own choice alone.
         first.present(.history)
         first.dismiss()
 
         let restored = BrowserUtilityPresentationState(defaults: defaults)
+        XCTAssertEqual(restored.triggerSurface, .downloads)
         restored.toggleSwitcher()
 
         XCTAssertTrue(restored.isSwitcherExpanded)
-        XCTAssertEqual(restored.surface, .history)
+        XCTAssertEqual(restored.surface, .downloads)
     }
 
     func testDownloadNotificationUsesTheNewestActiveTransferProgress() throws {
