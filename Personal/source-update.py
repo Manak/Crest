@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """The in-app Software Update's view of this checkout.
 
-  status [--no-fetch]        JSON: where mine stands against upstream/main,
+  status [--no-fetch] [--installed COMMIT]
+                             JSON: where mine stands against upstream/main,
                              the Chromium engine both need, and what changed
+                             since the installed build at COMMIT
   prepare --stage APP [--webkit]
                              merge upstream into mine, then build and stage
                              the app at APP (Personal/build-mac.sh --stage)
@@ -121,7 +123,17 @@ def new_release_notes(old_revision, new_revision):
     return notes
 
 
-def status(fetch):
+def known_commit(revision):
+    """The full commit a revision names, or None when the repository does
+    not have it, as after a rewrite of the branch it was built from."""
+    if not revision:
+        return None
+    result = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{revision}^{{commit}}"],
+                            cwd=REPOSITORY, capture_output=True, text=True)
+    return result.stdout.strip() or None
+
+
+def status(fetch, installed=None):
     report = {"checkout": str(REPOSITORY), "fetchError": None}
     report["branch"] = git("rev-parse", "--abbrev-ref", "HEAD")
     report["dirty"] = bool(git("status", "--porcelain"))
@@ -148,8 +160,21 @@ def status(fetch):
         "upstreamChromium": chromium_version_at("upstream/main"),
         "upstreamPublished": True if upstream_tag == local_tag else engine_published(upstream_tag),
     }
-    report["notes"] = new_release_notes("HEAD", "upstream/main") if report["upstream"]["behind"] else []
-    subjects = git("log", "--format=%s", "HEAD..upstream/main") if report["upstream"]["behind"] else ""
+    # The next build is HEAD with upstream merged in, so what it changes is
+    # measured from the installed build: commits of your own since then as
+    # much as upstream's.
+    build = known_commit(installed)
+    report["build"] = {
+        "commit": build,
+        "version": version_at(build) if build else None,
+        "behind": int(git("rev-list", "--count", f"{build}..HEAD")) if build else 0,
+    }
+    base = build or "HEAD"
+    notes = new_release_notes(base, "HEAD") if build else []
+    seen = {note["id"] for note in notes}
+    notes.extend(note for note in new_release_notes("HEAD", "upstream/main") if note["id"] not in seen)
+    report["notes"] = notes
+    subjects = git("log", "--format=%s", "HEAD", "upstream/main", "--not", base)
     report["commits"] = subjects.splitlines()[:40]
     return report
 
@@ -196,6 +221,7 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     status_parser = commands.add_parser("status")
     status_parser.add_argument("--no-fetch", action="store_true")
+    status_parser.add_argument("--installed", help="the commit the running app was built from")
     prepare_parser = commands.add_parser("prepare")
     prepare_parser.add_argument("--stage", required=True)
     prepare_parser.add_argument("--webkit", action="store_true")
@@ -207,7 +233,7 @@ def main():
          str(Path.home() / ".dotnet"), os.environ.get("PATH", "")])
     if args.command == "status":
         try:
-            print(json.dumps(status(fetch=not args.no_fetch)))
+            print(json.dumps(status(fetch=not args.no_fetch, installed=args.installed)))
         except Exception as error:  # the app shows this line
             print(json.dumps({"error": str(error)}))
             return 1

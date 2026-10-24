@@ -182,7 +182,8 @@ final class BrowserSourceUpdateService {
     private func performCheck(userInitiated: Bool) async {
         isChecking = true
         defer { isChecking = false }
-        let process = BrowserSourceUpdateProcess.updateScript(["status"], checkout: configuration.checkout)
+        let process = BrowserSourceUpdateProcess.updateScript(
+            ["status", "--installed", configuration.commit], checkout: configuration.checkout)
         checkProcess = process
         var output = ""
         let result: Result<BrowserSourceUpdateStatus, any Error>
@@ -212,7 +213,7 @@ final class BrowserSourceUpdateService {
             statusError = nil
             self.status = status
             if status.hasUpdate {
-                if !userInitiated, preferences.string(forKey: Self.skippedCommitKey) == status.upstream.commit {
+                if !userInitiated, preferences.string(forKey: Self.skippedCommitKey) == status.targetCommit {
                     return
                 }
                 offer(status)
@@ -222,7 +223,8 @@ final class BrowserSourceUpdateService {
             } else if userInitiated {
                 var message = "Crest is up to date with upstream at commit \(status.shortUpstreamCommit)."
                 if status.upstream.ahead > 0 {
-                    message += " Your \(status.upstream.ahead) personal commit\(status.upstream.ahead == 1 ? "" : "s") are on top."
+                    let ahead = status.upstream.ahead
+                    message += " Your \(ahead) personal commit\(ahead == 1 ? "" : "s") are on top."
                 }
                 message += " \(engineSummary)"
                 if let fetchError = status.fetchError {
@@ -236,7 +238,9 @@ final class BrowserSourceUpdateService {
     private func offer(_ status: BrowserSourceUpdateStatus) {
         let engineLine = engineSummary
         var message =
-            "\(status.upstream.behind) upstream commit\(status.upstream.behind == 1 ? "" : "s") since your build. Installing merges them into your branch and rebuilds Crest."
+            status.upstream.behind > 0
+            ? "\(status.changeSummary) Installing merges upstream into your branch and rebuilds Crest."
+            : "\(status.changeSummary) Installing rebuilds Crest."
         if status.engineChanges {
             message += " \(engineLine)"
         }
@@ -245,19 +249,21 @@ final class BrowserSourceUpdateService {
         }
         model.presentUpdate(
             title: status.updateTitle,
-            version: status.upstream.version,
-            build: status.shortUpstreamCommit,
+            version: status.targetVersion,
+            build: status.shortTargetCommit,
             releaseNotes: status.releaseNotesMarkdown(engineSummary: engineLine),
-            informationURL: URL(
-                string:
-                    "https://github.com/\(Self.upstreamRepository)/compare/\(status.local.commit.prefix(12))...\(status.upstream.commit.prefix(12))"
-            ),
+            informationURL: status.upstream.behind > 0
+                ? URL(
+                    string:
+                        "https://github.com/\(Self.upstreamRepository)/compare/\(status.local.commit.prefix(12))...\(status.upstream.commit.prefix(12))"
+                )
+                : nil,
             message: message,
             isInformationOnly: false,
             allowsOfferRefresh: false,
             install: { [weak self] in self?.beginBuild(for: status) },
             skip: { [weak self] in
-                self?.preferences.set(status.upstream.commit, forKey: Self.skippedCommitKey)
+                self?.preferences.set(status.targetCommit, forKey: Self.skippedCommitKey)
             })
     }
 
@@ -272,7 +278,8 @@ final class BrowserSourceUpdateService {
             "prepare", "--stage", stagePath.path,
         ]
         if configuration.engine == "webkit" { arguments.append("--webkit") }
-        let job = BrowserSourceUpdateJob(label: BrowserSourceUpdateJob.buildLabel, log: BrowserSourceUpdateJob.buildLogURL)
+        let job = BrowserSourceUpdateJob(
+            label: BrowserSourceUpdateJob.buildLabel, log: BrowserSourceUpdateJob.buildLogURL)
         do {
             try job.submit(arguments)
         } catch {

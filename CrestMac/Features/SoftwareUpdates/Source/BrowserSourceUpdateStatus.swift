@@ -19,6 +19,15 @@ struct BrowserSourceUpdateStatus: Codable, Equatable, Sendable {
         let ahead: Int
     }
 
+    /// The installed app's build, when the checkout still has its commit.
+    struct Build: Codable, Equatable, Sendable {
+        let commit: String?
+        let version: String?
+        /// Commits in the checkout that the installed app was built without,
+        /// your own as much as upstream's merged in.
+        let behind: Int
+    }
+
     struct Engine: Codable, Equatable, Sendable {
         let localTag: String?
         let upstreamTag: String?
@@ -49,20 +58,48 @@ struct BrowserSourceUpdateStatus: Codable, Equatable, Sendable {
     let local: Revision
     let upstream: Upstream
     let engine: Engine
+    let build: Build?
     let notes: [Note]
     let commits: [String]
 
-    var hasUpdate: Bool { upstream.behind > 0 }
+    /// Commits the next build adds over the installed one: upstream's not yet
+    /// merged, and the checkout's since the installed app was built.
+    var changeCount: Int { upstream.behind + (build?.behind ?? 0) }
+
+    var hasUpdate: Bool { changeCount > 0 }
 
     /// Whether the update changes the Chromium engine the app packages.
     var engineChanges: Bool { engine.localTag != engine.upstreamTag }
 
     var shortUpstreamCommit: String { String(upstream.commit.prefix(8)) }
 
-    /// The update's title, after the version upstream is at.
+    /// The commit the update builds: upstream's, once merged, or the
+    /// checkout's own when upstream has nothing new.
+    var targetCommit: String { upstream.behind > 0 ? upstream.commit : local.commit }
+
+    var shortTargetCommit: String { String(targetCommit.prefix(8)) }
+
+    var targetVersion: String? { upstream.behind > 0 ? upstream.version ?? local.version : local.version }
+
+    /// The update's title, after the version it builds.
     var updateTitle: String {
-        if let version = upstream.version { return "Crest \(version)" }
+        if let version = targetVersion { return "Crest \(version)" }
         return "Crest update"
+    }
+
+    /// What the update brings, in commits: upstream's since the build, your
+    /// personal ones on top, or only the checkout's own since the build.
+    var changeSummary: String {
+        let own = build?.behind ?? 0
+        if upstream.behind > 0 {
+            var summary =
+                "\(upstream.behind) upstream commit\(upstream.behind == 1 ? "" : "s") since your build, with your \(upstream.ahead) personal commit\(upstream.ahead == 1 ? "" : "s") kept on top."
+            if own > 0 {
+                summary += " Your checkout also has \(own) commit\(own == 1 ? "" : "s") since this build."
+            }
+            return summary
+        }
+        return "\(own) commit\(own == 1 ? "" : "s") in your checkout since this build, with nothing new upstream."
     }
 
     // MARK: - Actions - Text
@@ -73,7 +110,8 @@ struct BrowserSourceUpdateStatus: Codable, Equatable, Sendable {
         let installed = installedChromium ?? engine.localChromium ?? "unknown"
         let upstreamVersion = engine.upstreamChromium ?? "unknown"
         if buildEngine == "webkit" {
-            return "This is a WebKit-only build with no Chromium engine. Upstream's engine is Chromium \(upstreamVersion)."
+            return
+                "This is a WebKit-only build with no Chromium engine. Upstream's engine is Chromium \(upstreamVersion)."
         }
         guard engineChanges else {
             return "Chromium engine \(installed) is current with upstream."
@@ -97,13 +135,13 @@ struct BrowserSourceUpdateStatus: Codable, Equatable, Sendable {
     /// entries since this build, the engine line, and the commit subjects.
     func releaseNotesMarkdown(engineSummary: String) -> String {
         var lines: [String] = []
-        let from = local.version ?? String(local.commit.prefix(8))
-        let to = upstream.version ?? shortUpstreamCommit
+        let from =
+            build?.version ?? build?.commit.map { String($0.prefix(8)) } ?? local.version
+            ?? String(local.commit.prefix(8))
+        let to = targetVersion ?? shortTargetCommit
         lines.append("## \(from) → \(to)")
         lines.append("")
-        lines.append(
-            "\(upstream.behind) upstream commit\(upstream.behind == 1 ? "" : "s") since your build, with your \(upstream.ahead) personal commit\(upstream.ahead == 1 ? "" : "s") kept on top."
-        )
+        lines.append(changeSummary)
         lines.append("")
         lines.append("### Chromium engine")
         lines.append("")
@@ -121,8 +159,8 @@ struct BrowserSourceUpdateStatus: Codable, Equatable, Sendable {
             lines.append("### Commits")
             lines.append("")
             lines.append(contentsOf: commits.map { "- \($0)" })
-            if upstream.behind > commits.count {
-                lines.append("- …and \(upstream.behind - commits.count) more")
+            if changeCount > commits.count {
+                lines.append("- …and \(changeCount - commits.count) more")
             }
         }
         if let fetchError {
