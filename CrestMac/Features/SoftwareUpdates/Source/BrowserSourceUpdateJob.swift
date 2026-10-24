@@ -46,6 +46,11 @@ final class BrowserSourceUpdateJob {
             manager.createFile(atPath: log.path, contents: nil)
         }
         _ = Self.launchctl(["bootout", Self.domain + "/" + label])
+        var arguments = arguments
+        if let program = arguments.first, !program.contains("/") {
+            // launchd runs no PATH search; name the program by its path.
+            arguments[0] = Self.resolve(program) ?? program
+        }
         let plist: [String: Any] = [
             "Label": label,
             "ProgramArguments": arguments,
@@ -59,6 +64,10 @@ final class BrowserSourceUpdateJob {
         let plistURL = Self.jobsDirectory.appending(path: label + ".plist")
         try manager.createDirectory(at: Self.jobsDirectory, withIntermediateDirectories: true)
         try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(to: plistURL)
+        // Crest quarantines the files it creates, as a browser does its
+        // downloads, and launchd refuses a quarantined plist.
+        Self.removeQuarantine(plistURL)
+        Self.removeQuarantine(log)
         let result = Self.launchctl(["bootstrap", Self.domain, plistURL.path])
         guard result.status == 0 else {
             throw BrowserSourceUpdateError.processFailed(
@@ -167,7 +176,13 @@ final class BrowserSourceUpdateJob {
         return (process.terminationStatus, String(decoding: data, as: UTF8.self))
     }
 
-    private static func shellQuoted(_ string: String) -> String {
-        "'" + string.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    /// The first `program` on the build tools' search path.
+    private static func resolve(_ program: String) -> String? {
+        BrowserSourceUpdateProcess.searchPath.split(separator: ":").map { "\($0)/\(program)" }
+            .first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    private static func removeQuarantine(_ url: URL) {
+        _ = removexattr(url.path, "com.apple.quarantine", 0)
     }
 }
