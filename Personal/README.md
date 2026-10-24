@@ -28,7 +28,13 @@ upstream has published it yet. **Download and Install** merges upstream into
 `mine`, builds the app in the background while you keep browsing (the sidebar
 card shows each step), and **Install and Relaunch** swaps it in. Two toggles
 control automatic checks (hourly, when Crest becomes active) and automatic
-builds. The build log is `~/Library/Logs/Crest/source-update.log`.
+builds. Checks run as a child of Crest; the build and the install run as
+one-shot launchd agents (`~/Library/Caches/Crest-local-release/jobs/`), because
+macOS refuses a GUI app's own children the throwaway binaries Swift Package
+Manager compiles for package manifests, and because the install step has to
+outlive Crest. Logs: `~/Library/Logs/Crest/source-update.log` (checks and
+installs) and `source-update-build.log` (the current build). No Developer
+Tools permission is needed.
 
 The same thing from the terminal:
 
