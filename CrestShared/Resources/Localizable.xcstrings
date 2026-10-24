@@ -12976,6 +12976,9 @@
     "Storm Gold" : {
 
     },
+    "Stretch pins to fill the row" : {
+
+    },
     "Strict" : {
 
     },
@@ -15378,6 +15381,9 @@
           }
         }
       }
+    },
+    "Opened in Background Tab" : {
+
     }
   },
   "version" : "1.3"
