@@ -85,6 +85,34 @@ Upstream commits the generated `Crest.xcodeproj`, so don't run `xcodegen
 generate` unless you changed `project.yml`; a regenerate from a different
 XcodeGen version reorders blocks and dirties the tree for no reason.
 
+## Moving Arc's sign-ins over
+
+Crest's own Arc import brings Spaces, tabs and passwords, not cookies, so a
+site you were signed in to in Arc asks you to sign in again. Run
+
+```bash
+Personal/bin/arc-cookies-to-crest.py --dry-run
+```
+
+to see what would move, then the same without `--dry-run`. It pairs each Arc
+Space with the Crest Space of the same name (`--map "Arc name=Crest name"`
+for others), quits Crest, backs up its cookie stores under
+`~/Library/Caches/Crest-local-release/cookie-backups/`, re-encrypts every
+unexpired Arc cookie for Crest, and relaunches it. macOS asks for keychain
+access twice, for Arc's key and for Crest's. Crest's engine throws session
+cookies away at launch, so those are written as persistent cookies that
+expire after 30 days (`--session-lifetime-days`). The Swift tool it builds,
+`Personal/bin/ArcCookiesToCrest.swift`, is cached beside the engine download.
+This personal bundle encrypts with the plain "Chromium Safe Storage" keychain
+item, not "Crest Safe Storage": upstream's engine patch only renames it for
+`com.pauldavis.crest` bundles.
+
+The import also leaves every tab with a globe until its page loads, because
+it brings titles but not icons. `Personal/bin/arc-icons-to-crest.py` (same
+`--dry-run` and `--map` flags) matches each imported tab to its Arc item by
+address, then title, and copies Arc's cached icon into Crest's favicon store
+for tabs that have none; `--replace` overwrites the ones Crest already has.
+
 ## Making your own changes
 
 Work on `mine` (or on a feature branch off `mine`, merged back into `mine`).
