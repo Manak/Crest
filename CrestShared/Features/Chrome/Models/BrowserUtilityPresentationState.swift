@@ -34,7 +34,9 @@ final class BrowserUtilityPresentationState {
     @ObservationIgnored private var consumedSearchFocusRequest = 0
     @ObservationIgnored private let defaults: UserDefaults?
     @ObservationIgnored private let persistenceKey: String
-    @ObservationIgnored private var lastSelectedSurface = BrowserUtilitySurface.archive
+    /// The list the sidebar's lists button opens and wears the symbol of, as
+    /// the person chose it from the button's menu. Kept across launches.
+    private(set) var triggerSurface = BrowserUtilitySurface.archive
 
     init(
         defaults: UserDefaults? = nil,
@@ -45,7 +47,7 @@ final class BrowserUtilityPresentationState {
         if let rawValue = defaults?.string(forKey: persistenceKey),
             let persistedSurface = BrowserUtilitySurface.named(rawValue)
         {
-            lastSelectedSurface = persistedSurface
+            triggerSurface = persistedSurface
         }
     }
 
@@ -76,9 +78,14 @@ final class BrowserUtilityPresentationState {
     func present(_ surface: BrowserUtilitySurface) {
         if self.surface != surface { consumedSearchFocusRequest = searchFocusRequest }
         self.surface = surface
-        lastSelectedSurface = surface
-        defaults?.set(surface.name, forKey: persistenceKey)
         isSwitcherExpanded = true
+    }
+
+    /// Makes `surface` the list the lists button opens, and remembers it.
+    func chooseTriggerSurface(_ surface: BrowserUtilitySurface) {
+        guard surface != triggerSurface else { return }
+        triggerSurface = surface
+        defaults?.set(surface.name, forKey: persistenceKey)
     }
 
     /// Records a request that stays pending until the owning search field can receive it.
@@ -115,7 +122,7 @@ final class BrowserUtilityPresentationState {
         if isSwitcherExpanded {
             dismiss()
         } else {
-            present(hasNewDownloads ? .downloads : lastSelectedSurface)
+            present(hasNewDownloads ? .downloads : triggerSurface)
         }
     }
 

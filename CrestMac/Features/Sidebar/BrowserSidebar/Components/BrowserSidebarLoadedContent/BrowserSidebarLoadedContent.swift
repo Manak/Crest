@@ -170,7 +170,9 @@ struct BrowserSidebarLoadedContent: View {
             ),
             commonLists: BrowserSpaceSwitcherCommonLists(
                 isExpanded: context.utilityPresentation.isSwitcherExpanded,
+                surface: context.utilityPresentation.triggerSurface,
                 toggle: context.toggleUtilitySwitcher,
+                choose: context.utilityPresentation.chooseTriggerSurface,
                 recordTriggerFrame:
                     context.utilityPresentation.recordTriggerFrame
             )

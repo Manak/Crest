@@ -25,7 +25,13 @@ struct BrowserSpaceSwitcherSidebarToggle {
 /// not been looked at yet.
 struct BrowserSpaceSwitcherCommonLists {
     let isExpanded: Bool
+
+    /// The list the button opens and wears the symbol of.
+    let surface: BrowserUtilitySurface
     let toggle: () -> Void
+
+    /// Makes another list the one the button opens.
+    let choose: (BrowserUtilitySurface) -> Void
 
     /// Reports where the trigger ended up, so the lists can fan out from it.
     let recordTriggerFrame: (CGRect) -> Void
