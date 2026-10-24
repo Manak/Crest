@@ -4,9 +4,11 @@ import Foundation
 /// Crest. macOS lets launchd's jobs run the throwaway binaries SwiftPM
 /// compiles for package manifests, which it refuses to a GUI app's children
 /// unless the app is listed under Developer Tools; and a job outlives Crest,
-/// which the install step needs once it asks Crest to quit. The job's output
-/// goes to a log file that Crest follows; the Python helper ends its output
-/// with an `::exit N` line.
+/// which the install step needs once it asks Crest to quit. The job is a
+/// one-shot agent (`launchctl bootstrap` of a plist with KeepAlive off;
+/// `launchctl submit` would restart it when it ends). Its output goes to a
+/// log file that Crest follows; the Python helper ends its output with an
+/// `::exit N` line.
 @MainActor
 final class BrowserSourceUpdateJob {
     // MARK: - Static Variables
@@ -34,30 +36,54 @@ final class BrowserSourceUpdateJob {
 
     // MARK: - Actions - Submitting
 
-    /// Submits `arguments` as a command run by zsh with the build tools on
-    /// PATH, starting the log afresh. A finished job with the same label is
-    /// removed first; launchd keeps them registered.
+    /// Starts `arguments` as a one-shot agent with the build tools on PATH,
+    /// starting the log afresh. A finished job with the same label is booted
+    /// out first; launchd keeps them loaded.
     func submit(_ arguments: [String], truncatingLog: Bool = true) throws {
         let manager = FileManager.default
         try? manager.createDirectory(at: log.deletingLastPathComponent(), withIntermediateDirectories: true)
         if truncatingLog || !manager.fileExists(atPath: log.path) {
             manager.createFile(atPath: log.path, contents: nil)
         }
-        _ = Self.launchctl(["remove", label])
-        let command =
-            "export PATH=\(Self.shellQuoted(BrowserSourceUpdateProcess.searchPath)); exec "
-            + arguments.map(Self.shellQuoted).joined(separator: " ")
-        let result = Self.launchctl(["submit", "-l", label, "-o", log.path, "-e", log.path, "--", "/bin/zsh", "-c", command])
+        _ = Self.launchctl(["bootout", Self.domain + "/" + label])
+        let plist: [String: Any] = [
+            "Label": label,
+            "ProgramArguments": arguments,
+            "EnvironmentVariables": ["PATH": BrowserSourceUpdateProcess.searchPath, "HOME": NSHomeDirectory()],
+            "StandardOutPath": log.path,
+            "StandardErrorPath": log.path,
+            "RunAtLoad": true,
+            "KeepAlive": false,
+            "ProcessType": "Standard",
+        ]
+        let plistURL = Self.jobsDirectory.appending(path: label + ".plist")
+        try manager.createDirectory(at: Self.jobsDirectory, withIntermediateDirectories: true)
+        try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(to: plistURL)
+        let result = Self.launchctl(["bootstrap", Self.domain, plistURL.path])
         guard result.status == 0 else {
             throw BrowserSourceUpdateError.processFailed(
                 "launchctl could not start the job: \(result.output.trimmingCharacters(in: .whitespacesAndNewlines))")
         }
     }
 
+    /// Where the jobs' plists are written.
+    static var jobsDirectory: URL {
+        URL(fileURLWithPath: NSHomeDirectory()).appending(path: "Library/Caches/Crest-local-release/jobs")
+    }
+
+    /// The person's GUI launchd domain.
+    static var domain: String { "gui/\(getuid())" }
+
     /// Follows the log until the job prints its exit line or launchd reports
     /// it gone, giving `onLine` each other line as it appears. The exit
     /// status is nil when the job ended without saying, or was cancelled.
     func wait(onLine: @escaping @MainActor (String) -> Void) async -> Int32? {
+        let status = await follow(onLine: onLine)
+        if !isCancelled { finish() }
+        return status
+    }
+
+    private func follow(onLine: @escaping @MainActor (String) -> Void) async -> Int32? {
         var ticks = 0
         while !isCancelled {
             for line in readNewLines() {
@@ -83,7 +109,12 @@ final class BrowserSourceUpdateJob {
 
     func cancel() {
         isCancelled = true
-        _ = Self.launchctl(["remove", label])
+        _ = Self.launchctl(["bootout", Self.domain + "/" + label])
+    }
+
+    /// Unloads the finished job so nothing restarts it and the label is free.
+    func finish() {
+        _ = Self.launchctl(["bootout", Self.domain + "/" + label])
     }
 
     // MARK: - Actions - Log
