@@ -7,6 +7,7 @@ struct PinnedTabOrganizationMenu: View {
     let isLoaded: Bool
     let dragState: BrowserTabDragState?
     let renameTab: () -> Void
+    let editSavedAddress: () -> Void
     let changeIcon: () -> Void
 
     var body: some View {
@@ -16,6 +17,7 @@ struct PinnedTabOrganizationMenu: View {
             assignment: assignment,
             isLoaded: isLoaded,
             renameTab: renameTab,
+            editSavedAddress: editSavedAddress,
             changeIcon: changeIcon
         )
         .tint(.primary)

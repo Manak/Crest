@@ -17,6 +17,7 @@ struct BrowserSidebarTabRowInteractionContext {
     let isChoosingIcon: Binding<Bool>
     let activate: () -> Void
     let beginRenaming: () -> Void
+    let beginEditingSavedAddress: () -> Void
     let beginChangingIcon: () -> Void
     let setEmojiIcon: (String) -> Void
     let resetIcon: () -> Void

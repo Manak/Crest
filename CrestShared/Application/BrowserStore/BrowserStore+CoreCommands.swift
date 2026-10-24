@@ -39,6 +39,14 @@ extension BrowserStore {
             from: self)
     }
 
+    /// Makes the address `input` names by the Space's rules the one a saved
+    /// or pinned tab belongs to, and answers whether the core accepted it.
+    func setSessionSavedAddress(_ input: String, tabID: UUID, in spaceID: UUID) -> Bool {
+        family.perform(
+            SetSavedAddress(workspaceID: family.workspaceID, spaceID: spaceID, tabID: tabID, input: input),
+            from: self) != nil
+    }
+
     /// Returns a saved or pinned tab to the address it belongs to, and answers
     /// whether the core accepted it, including for a tab already there.
     func returnSessionTabToSavedAddress(tabID: UUID, in spaceID: UUID) -> Bool {

@@ -268,6 +268,18 @@ extension BrowserStore {
         replaceSessionSavedAddress(tabID: id, in: spaceID)
     }
 
+    /// Makes the address `input` names the one the saved or pinned tab
+    /// belongs to, leaving its page where it is. False when the core refused
+    /// it, as for a tab that belongs nowhere or input that names no address.
+    @discardableResult
+    func setTabSavedLocation(
+        _ input: String,
+        for id: UUID,
+        in spaceID: UUID
+    ) -> Bool {
+        setSessionSavedAddress(input, tabID: id, in: spaceID)
+    }
+
     @discardableResult
     func restoreTabSavedLocation(
         _ id: UUID,

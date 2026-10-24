@@ -48,7 +48,7 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void ASavedTabReplacesOrReturnsToTheAddressItBelongsToAndAnOpenTabBelongsNowhere() {
+    public void ASavedTabReplacesSetsOrReturnsToTheAddressItBelongsToAndAnOpenTabBelongsNowhere() {
         var fixture = SavedSession(); var session = fixture.Document["session"]!;
         using var device = new TestDevice(session);
         var core = device.Authority;
@@ -61,6 +61,18 @@ public sealed partial class BrowserContractsTests {
         var home = core.Current;
         device.Send(new ReturnToSavedAddress(device.Workspace, fixture.Space, fixture.Tab));
         Assert.Same(home, core.Current);
+
+        // A typed address, read by the Space's rules, becomes the one the tab
+        // belongs to; its page stays where it is until the tab returns.
+        device.Send(new SetSavedAddress(device.Workspace, fixture.Space, fixture.Tab, "example.com/inbox?user=a@b.c"));
+        Assert.Equal(("https://example.com/inbox?user=a@b.c", "https://example.com/article#one", true),
+            (Tab().SavedUrl, Tab().Url, Tab().IsAwayFromSavedAddress));
+        device.Send(new ReturnToSavedAddress(device.Workspace, fixture.Space, fixture.Tab));
+        Assert.Equal(("https://example.com/inbox?user=a@b.c", false), (Tab().Url, Tab().IsAwayFromSavedAddress));
+        var set = core.Current;
+        Assert.IsType<UnsupportedAddress>(Assert.Throws<Rejected>(() =>
+            device.Send(new SetSavedAddress(device.Workspace, fixture.Space, fixture.Tab, " "))).Rejection);
+        Assert.Same(set, core.Current);
 
         using var elsewhere = new TestDevice(session);
         var away = elsewhere.Authority;
@@ -79,6 +91,8 @@ public sealed partial class BrowserContractsTests {
             browsing.Send(new ReplaceSavedAddress(browsing.Workspace, fixture.Space, fixture.Tab))).Rejection).TabId);
         Assert.IsType<NoSavedAddress>(Assert.Throws<Rejected>(() =>
             browsing.Send(new ReturnToSavedAddress(browsing.Workspace, fixture.Space, fixture.Tab))).Rejection);
+        Assert.IsType<NoSavedAddress>(Assert.Throws<Rejected>(() =>
+            browsing.Send(new SetSavedAddress(browsing.Workspace, fixture.Space, fixture.Tab, "https://example.com/"))).Rejection);
         Assert.Same(before, current.Current);
     }
 

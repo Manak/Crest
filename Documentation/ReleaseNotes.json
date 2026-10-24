@@ -4405,6 +4405,10 @@
     "sidebar-lists-button-choice": {
       "category": "new",
       "message": "Right-click the lists button at the bottom of the sidebar to choose whether it opens Archive, History or Downloads."
+    },
+    "saved-tab-edit-url": {
+      "category": "new",
+      "message": "Edit Tab offers Edit URL… for saved and pinned tabs, so you can type the address a tab belongs to instead of replacing it with the page it is showing."
     }
   }
 }

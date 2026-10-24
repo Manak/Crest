@@ -6,6 +6,7 @@ struct BrowserTabOrganizationMenuContent: View {
     let assignment: BrowserTabRuntimeAssignment
     var isLoaded = true
     var renameTab: (() -> Void)? = nil
+    var editSavedAddress: (() -> Void)? = nil
     var changeIcon: (() -> Void)? = nil
 
     @Environment(\.layoutDirection) private var layoutDirection
@@ -16,6 +17,7 @@ struct BrowserTabOrganizationMenuContent: View {
         assignment = menu.assignment
         isLoaded = menu.isLoaded
         renameTab = menu.renameTab
+        editSavedAddress = menu.editSavedAddress
         changeIcon = menu.changeIcon
     }
 
@@ -68,6 +70,7 @@ struct BrowserTabOrganizationMenuContent: View {
                         in: assignment.spaceID
                     )
                 },
+                editSavedLocation: editSavedAddress,
                 clearIcon: {
                     browser.clearTabIcon(
                         for: tab.id,

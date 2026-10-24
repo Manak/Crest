@@ -9,8 +9,10 @@ struct PinnedTabGridContent: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var renamingAssignment: BrowserTabRuntimeAssignment?
+    @State private var savedAddressAssignment: BrowserTabRuntimeAssignment?
     @State private var iconRequest: BrowserTabRuntimeAssignment?
     @State private var draftTitle = ""
+    @State private var draftSavedAddress = ""
     private var tabScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
     private var pinColumns: Int { BrowserDeviceAppearanceStore.shared.pinColumns }
 
@@ -38,7 +40,8 @@ struct PinnedTabGridContent: View {
             ForEach(tabs, id: \.id) { tab in
                 PinnedTabTile(
                     tab: tab, grid: grid, reorder: reorderContext, iconRequest: $iconRequest,
-                    renameTab: { beginRenaming(tab) }
+                    renameTab: { beginRenaming(tab) },
+                    editSavedAddress: { beginEditingSavedAddress(tab) }
                 )
             }
             RoundedRectangle(cornerRadius: BrowserSidebarMetrics.layerCornerRadius(), style: .continuous)
@@ -75,9 +78,18 @@ struct PinnedTabGridContent: View {
 
             Button("Cancel", role: .cancel) { renamingAssignment = nil }
         }
+        .browserTabSavedAddressPrompt(
+            isPresented: isEditingSavedAddressBinding,
+            draft: $draftSavedAddress,
+            commit: commitSavedAddress
+        )
         .onChange(of: renamingAssignmentIsLive) { _, isLive in
             guard !isLive else { return }
             renamingAssignment = nil
+        }
+        .onChange(of: savedAddressAssignmentIsLive) { _, isLive in
+            guard !isLive else { return }
+            savedAddressAssignment = nil
         }
         .onChange(of: iconRequestIsLive) { _, isLive in
             guard !isLive else { return }
@@ -115,6 +127,35 @@ struct PinnedTabGridContent: View {
         renamingAssignment = assignment
     }
 
+    private var isEditingSavedAddressBinding: Binding<Bool> {
+        Binding(
+            get: { savedAddressAssignmentIsLive },
+            set: { isPresented in
+                guard !isPresented else { return }
+                savedAddressAssignment = nil
+            }
+        )
+    }
+
+    private func beginEditingSavedAddress(_ tab: TabStateModel) {
+        let assignment = runtimeAssignment(for: tab.id)
+        guard isCurrentAndUnlocked(assignment), let address = tab.savedURL ?? tab.url else { return }
+        draftSavedAddress = address
+        savedAddressAssignment = assignment
+    }
+
+    /// Stores the typed address and sends the tab there, the way returning
+    /// to a saved address does.
+    private func commitSavedAddress() {
+        guard let savedAddressAssignment else { return }
+        self.savedAddressAssignment = nil
+        guard let context = grid.context, isCurrentAndUnlocked(savedAddressAssignment),
+            context.browser.setTabSavedLocation(
+                draftSavedAddress, for: savedAddressAssignment.tabID, in: savedAddressAssignment.spaceID)
+        else { return }
+        context.restoreSavedLocation?(savedAddressAssignment.tabID)
+    }
+
     private func commitRename() {
         guard let renamingAssignment else { return }
         self.renamingAssignment = nil
@@ -148,6 +189,11 @@ struct PinnedTabGridContent: View {
     private var renamingAssignmentIsLive: Bool {
         guard let renamingAssignment else { return false }
         return isCurrentAndUnlocked(renamingAssignment)
+    }
+
+    private var savedAddressAssignmentIsLive: Bool {
+        guard let savedAddressAssignment else { return false }
+        return isCurrentAndUnlocked(savedAddressAssignment)
     }
 
     private func isCurrentAndUnlocked(

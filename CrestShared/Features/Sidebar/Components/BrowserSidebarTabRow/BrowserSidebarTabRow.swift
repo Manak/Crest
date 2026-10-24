@@ -25,8 +25,10 @@ struct BrowserSidebarTabRow: View {
     @State private var isDropTargeted = false
     @State private var dropTargetHeight = CrestLayout.sidebarRowHeight
     @State private var renameRequest: BrowserTabRuntimeAssignment?
+    @State private var savedAddressRequest: BrowserTabRuntimeAssignment?
     @State private var iconRequest: BrowserTabRuntimeAssignment?
     @State private var draftTitle = ""
+    @State private var draftSavedAddress = ""
     @FocusState private var isTitleFocused: Bool
 
     var body: some View {
@@ -48,17 +50,24 @@ struct BrowserSidebarTabRow: View {
                     tabID: tab.id, context: context, canAct: { configuration.isCurrentAndUnlocked }))
         )
         .environment(\.browserInteractionCapabilities, context.capabilities)
+        .browserTabSavedAddressPrompt(
+            isPresented: savedAddressPresentation,
+            draft: $draftSavedAddress,
+            commit: commitSavedAddress
+        )
         .onChange(of: runtimeAssignment) { _, assignment in
             guard renameRequest != assignment else { return }
             cancelTitleEditing()
+            savedAddressRequest = nil
             iconRequest = nil
         }
         .modifier(
             SidebarSpaceRoleCleanupModifier(
                 isAvailable: configuration.isAvailableForDisplay,
-                hasPendingActions: renameRequest != nil || iconRequest != nil,
+                hasPendingActions: renameRequest != nil || savedAddressRequest != nil || iconRequest != nil,
                 cancel: {
                     cancelTitleEditing()
+                    savedAddressRequest = nil
                     iconRequest = nil
                 }
             )
@@ -90,6 +99,7 @@ struct BrowserSidebarTabRow: View {
             isChoosingIcon: iconPresentation,
             activate: activate,
             beginRenaming: beginRenaming,
+            beginEditingSavedAddress: beginEditingSavedAddress,
             beginChangingIcon: beginChangingIcon,
             setEmojiIcon: setRequestedTabEmoji,
             resetIcon: clearRequestedTabIcon,
@@ -116,6 +126,35 @@ struct BrowserSidebarTabRow: View {
         Task { @MainActor in
             isTitleFocused = true
         }
+    }
+
+    /// Asks for the address the tab belongs to. A row has no room to edit a
+    /// URL in place, so the prompt asks for it instead.
+    private func beginEditingSavedAddress() {
+        guard configuration.isCurrentAndUnlocked, let address = tab.savedURL ?? tab.url else { return }
+        draftSavedAddress = address
+        savedAddressRequest = runtimeAssignment
+    }
+
+    private var savedAddressPresentation: Binding<Bool> {
+        Binding {
+            savedAddressRequest == runtimeAssignment
+                && configuration.isAvailableForDisplay
+        } set: { isPresented in
+            if !isPresented { savedAddressRequest = nil }
+        }
+    }
+
+    /// Stores the typed address and sends the tab there, the way returning
+    /// to a saved address does.
+    private func commitSavedAddress() {
+        guard let request = savedAddressRequest else { return }
+        savedAddressRequest = nil
+        guard request == runtimeAssignment,
+            configuration.isCurrentAndUnlocked,
+            context.browser.setTabSavedLocation(draftSavedAddress, for: request.tabID, in: request.spaceID)
+        else { return }
+        context.restoreSavedLocation?(request.tabID)
     }
 
     private func beginChangingIcon() {
