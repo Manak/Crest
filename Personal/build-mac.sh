@@ -186,7 +186,9 @@ else
   # requires one team across the app, the engine and the host framework).
   packaged_app="$staging_root/product/Crest.app"
   print "==> Packaging and signing with the Chromium engine"
-  CREST_DEFAULT_UPDATE_CHANNEL=development python3 Scripts/control-plane/package-chromium-host.py \
+  # Personal/bin/codesign drops --timestamp: no notarization, no clock dependency.
+  PATH="$repository_root/Personal/bin:$PATH" CREST_DEFAULT_UPDATE_CHANNEL=development \
+    python3 Scripts/control-plane/package-chromium-host.py \
     --browser "$engine_path" \
     --product \
     --distribution \
@@ -213,7 +215,7 @@ plist="$staged_app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CrestSourceEngine string $engine" "$plist"
 applied_entitlements="$staging_root/entitlements.plist"
 codesign -d --entitlements :- "$staged_app" 2>/dev/null > "$applied_entitlements"
-codesign --force --options runtime --timestamp --sign "$signing_identity" \
+codesign --force --options runtime --sign "$signing_identity" \
   --entitlements "$applied_entitlements" "$staged_app"
 codesign --verify --deep --strict "$staged_app"
 [[ "$(defaults read "$staged_app/Contents/Info" CFBundleIdentifier)" == "$bundle_id" ]]

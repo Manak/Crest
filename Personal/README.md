@@ -19,17 +19,28 @@ syncing is low friction.
 
 ## Day to day
 
-Pull in upstream changes, then rebuild and reinstall:
+The easiest way: **Crest → Settings → About → Check for Updates**. In a
+personal build, Software Update works from this checkout instead of the
+official Sparkle feed. It fetches upstream, shows how many commits you are
+behind with upstream's release notes, and a separate **Chromium engine** line
+saying which engine you run, which one upstream now needs, and whether
+upstream has published it yet. **Download and Install** merges upstream into
+`mine`, builds the app in the background while you keep browsing (the sidebar
+card shows each step), and **Install and Relaunch** swaps it in. Two toggles
+control automatic checks (hourly, when Crest becomes active) and automatic
+builds. The build log is `~/Library/Logs/Crest/source-update.log`.
+
+The same thing from the terminal:
 
 ```bash
 Personal/sync-upstream.sh && Personal/build-mac.sh
 ```
 
-`sync-upstream.sh` fast-forwards `main`, pushes it to your fork, merges it into
-`mine`, and pushes `mine`. Pass `--rebase` if
-you prefer your commits replayed on top (it then force-pushes `mine` with
-`--force-with-lease`). If a merge conflicts, resolve it, `git commit`, and run
-`Personal/build-mac.sh`.
+`sync-upstream.sh` (run from `mine`) fast-forwards `main`, merges it into
+`mine`, and pushes both to your fork. Pass `--rebase` to replay your commits
+on top instead (force-pushes `mine` with `--force-with-lease`), or `--no-push`.
+A conflicting merge is aborted and reported; resolve it with `git merge main`,
+commit, and build again. The in-app updater shows the same error.
 
 `build-mac.sh` builds the same dual-engine app the official release ships:
 it downloads the prebuilt Chromium engine upstream publishes for this
@@ -43,6 +54,17 @@ release can never replace your build, re-seals the app, and installs it in
 no engine download) or `--no-install` to get `~/Desktop/Crest.app` instead.
 Incremental rebuilds take a few minutes; a clean build is longer because the
 .NET core is compiled with NativeAOT and every binary in the engine is re-signed.
+`--stage /path/Crest.app` builds without installing and `--install-staged
+/path/Crest.app` installs such a build; the in-app updater uses that pair.
+Each build regenerates `Crest.xcodeproj` (so Swift files added under
+`CrestMac/Features/SoftwareUpdates/Source/` are compiled) and restores the
+tracked project file afterwards, so the tree stays clean and never conflicts
+with upstream's project changes. Open the project in Xcode only after running
+`xcodegen generate` yourself.
+
+`source-update.py` is what the app calls: `status` prints the comparison as
+JSON, `prepare --stage` runs the sync and a staged build, `install --staged`
+installs it.
 
 If upstream changes the engine inputs before publishing the matching engine,
 the download fails with the engine tag; build with `--webkit` until it appears
@@ -83,7 +105,10 @@ entry per fix). None of that applies to commits that only live on `mine`.
   author's iCloud container and App ID, which only their team can provision.
   `Personal/Crest-Personal.entitlements` leaves them out, so iCloud sync and
   the passkey browser entitlement are unavailable here. Everything local works.
-- **Updates.** No Sparkle feed. You update by syncing and rebuilding.
+- **Updates.** No Sparkle feed. Software Update is reimplemented on top of
+  this checkout (`BrowserSourceUpdateService`, hooked into
+  `BrowserSoftwareUpdateService` only when Info.plist carries
+  `CrestSourceCheckout`). The official app's code path is unchanged.
 - **Keychain.** Without a `keychain-access-groups` entitlement the app still
   uses the login keychain, but items are scoped to this app's signature.
   Re-signing with a different identity would hide previously saved passwords.

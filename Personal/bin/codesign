@@ -1,0 +1,10 @@
+#!/bin/zsh
+# codesign without a secure timestamp. Upstream's packager signs for
+# notarization with --timestamp, which needs Apple's timestamp server and a
+# clock within tolerance of it; a personal build is never notarized, so the
+# timestamp is dead weight and a clock a few minutes off would fail the build.
+arguments=()
+for argument in "$@"; do
+  [[ "$argument" == "--timestamp" ]] || arguments+=("$argument")
+done
+exec /usr/bin/codesign "${arguments[@]}"
