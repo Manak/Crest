@@ -4386,6 +4386,10 @@
       "category": "improved",
       "message": "Opening a link in a background tab now shows a brief confirmation at the top of the window."
     },
+    "smooth-appearance-previews": {
+      "category": "fixed",
+      "message": "Dragging an Appearance setting, such as the window border, material, Space icon size or the tab and address field colors, no longer slows the whole app down."
+    },
     "space-switch-mouse-wheel-flicks": {
       "category": "fixed",
       "message": "Scrolling sideways over the sidebar with a mouse wheel switches one Space per flick or notch, including quick flicks in a row."
