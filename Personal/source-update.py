@@ -213,8 +213,13 @@ def main():
             return 1
         return 0
     if args.command == "prepare":
-        return prepare(args.stage, args.webkit)
-    return install(args.staged)
+        code = prepare(args.stage, args.webkit)
+    else:
+        code = install(args.staged)
+    # The app follows a log file when it runs this as a launchd job; this is
+    # how it learns the step is over.
+    print(f"::exit {code}", flush=True)
+    return code
 
 
 if __name__ == "__main__":

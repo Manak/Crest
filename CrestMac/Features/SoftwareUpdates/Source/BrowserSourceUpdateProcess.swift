@@ -66,27 +66,6 @@ final class BrowserSourceUpdateProcess {
         process.terminate()
     }
 
-    // MARK: - Actions - Detached runs
-
-    /// Starts `arguments` through the checkout's build script without waiting
-    /// for it, writing to the update log instead of a pipe, so it survives
-    /// Crest quitting: the install step asks Crest to quit and relaunches it.
-    static func startDetached(buildScriptArguments arguments: [String], checkout: URL) throws {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = [checkout.appending(path: "Personal/build-mac.sh").path] + arguments
-        process.currentDirectoryURL = checkout
-        var environment = ProcessInfo.processInfo.environment
-        environment["PATH"] = searchPath
-        environment["HOME"] = NSHomeDirectory()
-        process.environment = environment
-        let log = openLog() ?? FileHandle.nullDevice
-        process.standardOutput = log
-        process.standardError = log
-        process.standardInput = FileHandle.nullDevice
-        try process.run()
-    }
-
     private static func openLog() -> FileHandle? {
         let manager = FileManager.default
         try? manager.createDirectory(at: logURL.deletingLastPathComponent(), withIntermediateDirectories: true)

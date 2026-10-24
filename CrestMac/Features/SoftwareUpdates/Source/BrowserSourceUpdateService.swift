@@ -72,7 +72,7 @@ final class BrowserSourceUpdateService {
     @ObservationIgnored private var checkTask: Task<Void, Never>?
     @ObservationIgnored private var checkProcess: BrowserSourceUpdateProcess?
     @ObservationIgnored private var buildTask: Task<Void, Never>?
-    @ObservationIgnored private var buildProcess: BrowserSourceUpdateProcess?
+    @ObservationIgnored private var buildJob: BrowserSourceUpdateJob?
     @ObservationIgnored private var buildWasCancelled = false
 
     var automaticallyChecksForUpdates: Bool {
@@ -267,42 +267,46 @@ final class BrowserSourceUpdateService {
         guard buildTask == nil else { return }
         buildWasCancelled = false
         let stagePath = stagingDirectory.appending(path: "Crest.app")
-        var arguments = ["prepare", "--stage", stagePath.path]
+        var arguments = [
+            "python3", "-I", configuration.checkout.appending(path: "Personal/source-update.py").path,
+            "prepare", "--stage", stagePath.path,
+        ]
         if configuration.engine == "webkit" { arguments.append("--webkit") }
-        let process = BrowserSourceUpdateProcess.updateScript(arguments, checkout: configuration.checkout)
-        buildProcess = process
+        let job = BrowserSourceUpdateJob(label: BrowserSourceUpdateJob.buildLabel, log: BrowserSourceUpdateJob.buildLogURL)
+        do {
+            try job.submit(arguments)
+        } catch {
+            model.presentError(
+                message: "The update could not be started: \(error.localizedDescription)", acknowledgement: {})
+            return
+        }
+        buildJob = job
         isBuilding = true
         model.presentSourceBuild(
             message: "Merging upstream changes…",
             cancellation: { [weak self] in
                 guard let self else { return }
                 buildWasCancelled = true
-                buildProcess?.terminate()
+                buildJob?.cancel()
             })
         buildTask = Task { [weak self] in
             guard let self else { return }
             var recent: [String] = []
-            let outcome: Result<Int32, any Error>
-            do {
-                let code = try await process.run { [weak self] line in
-                    recent.append(line)
-                    if recent.count > 80 { recent.removeFirst() }
-                    if line.hasPrefix("==> ") {
-                        self?.model.setSourceBuildMessage(String(line.dropFirst(4)) + "…")
-                    }
+            let code = await job.wait { [weak self] line in
+                recent.append(line)
+                if recent.count > 80 { recent.removeFirst() }
+                if line.hasPrefix("==> ") {
+                    self?.model.setSourceBuildMessage(String(line.dropFirst(4)) + "…")
                 }
-                outcome = .success(code)
-            } catch {
-                outcome = .failure(error)
             }
             buildTask = nil
-            buildProcess = nil
+            buildJob = nil
             isBuilding = false
             guard !buildWasCancelled else { return }
-            switch outcome {
-            case .success(0):
+            if code == 0 {
                 let staged = StagedUpdate(
-                    commit: status.upstream.commit, version: status.upstream.version, path: stagePath)
+                    commit: Self.recordedCommit(of: stagePath) ?? status.upstream.commit,
+                    version: status.upstream.version, path: stagePath)
                 stagedUpdate = staged
                 model.presentAutomaticUpdateReady(
                     title: status.updateTitle,
@@ -312,28 +316,40 @@ final class BrowserSourceUpdateService {
                     informationURL: nil,
                     message: "The update is built. Relaunch to finish installing it.",
                     installAndRelaunch: { [weak self] in self?.installStaged() })
-            case .success(let code):
-                model.presentError(message: Self.failureMessage(code: code, recent: recent), acknowledgement: {})
-            case .failure(let error):
-                model.presentError(
-                    message: "The update could not be built: \(error.localizedDescription)", acknowledgement: {})
+            } else {
+                model.presentError(message: Self.failureMessage(code: code ?? -1, recent: recent), acknowledgement: {})
             }
         }
     }
 
-    /// Asks the build script to quit Crest, install the staged app and open
-    /// it. The script runs on its own, so Crest's quit does not end it.
+    /// Asks a launchd job to quit Crest, install the staged app and open it.
+    /// A job outlives Crest, so Crest's quit does not end it.
     func installStaged() {
         guard let stagedUpdate else { return }
         preferences.set(stagedUpdate.commit, forKey: Self.pendingInstallCommitKey)
+        let job = BrowserSourceUpdateJob(
+            label: BrowserSourceUpdateJob.installLabel, log: BrowserSourceUpdateProcess.logURL)
         do {
-            try BrowserSourceUpdateProcess.startDetached(
-                buildScriptArguments: ["--install-staged", stagedUpdate.path.path], checkout: configuration.checkout)
+            try job.submit(
+                [
+                    "/bin/zsh", configuration.checkout.appending(path: "Personal/build-mac.sh").path,
+                    "--install-staged", stagedUpdate.path.path,
+                ], truncatingLog: false)
         } catch {
             preferences.removeObject(forKey: Self.pendingInstallCommitKey)
             model.presentError(
                 message: "The staged update could not be installed: \(error.localizedDescription)", acknowledgement: {})
         }
+    }
+
+    /// The commit a staged app records, which the relaunched app compares
+    /// against its own to know the install went through.
+    private static func recordedCommit(of app: URL) -> String? {
+        guard
+            let data = try? Data(contentsOf: app.appending(path: "Contents/Info.plist")),
+            let info = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+        else { return nil }
+        return info["CrestSourceCommit"] as? String
     }
 
     private static func failureMessage(code: Int32, recent: [String]) -> String {
@@ -344,6 +360,10 @@ final class BrowserSourceUpdateService {
         }
         if let line = recent.last(where: { $0.contains("No Chromium engine is published") }) {
             return line
+        }
+        if recent.contains(where: { $0.contains("manifest compilation") }) {
+            return
+                "Xcode could not run Swift Package Manager's manifest for Sparkle. Add Crest under System Settings → Privacy & Security → Developer Tools, then try again."
         }
         let detail = lastMeaningfulLine(of: recent.joined(separator: "\n")) ?? "exit status \(code)"
         return "The update could not be built: \(detail) See \(BrowserSourceUpdateProcess.logURL.path)."
