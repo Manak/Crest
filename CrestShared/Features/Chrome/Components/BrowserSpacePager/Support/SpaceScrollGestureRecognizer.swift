@@ -1,8 +1,10 @@
 import Foundation
 
 /// Recognizes one horizontal Space intent without coupling selection to scroll position.
-/// Phased gestures stay latched until their boundary; phase-less devices use a quiet gap
-/// measured from the last event, never a timer measured from the last accepted step.
+/// Phased gestures stay latched until their boundary. Phase-less devices re-arm a
+/// fixed interval after their last step, whether or not the wheel kept turning: a
+/// free-rolling thumb wheel trails small deltas for as long as it slows down, so a
+/// quiet gap measured from the last event would swallow the next flick.
 struct SpaceScrollGestureRecognizer {
     enum Phase: Equatable, Sendable {
         case none, mayBegin, began, changed, ended, cancelled
@@ -26,7 +28,9 @@ struct SpaceScrollGestureRecognizer {
     private static let preciseThreshold: CGFloat = 40
     private static let wheelThreshold: CGFloat = 1
     private static let horizontalDominance: CGFloat = 1.35
-    private static let phaseLessIdleInterval: TimeInterval = 0.35
+    // Phase-less input forgets its remainder after this much silence, and steps
+    // again this long after its last step. Deltas in between are the same flick.
+    private static let phaseLessRearmInterval: TimeInterval = 0.35
 
     private var axis: Axis = .undecided
     private var accumulatedX: CGFloat = 0
@@ -36,6 +40,7 @@ struct SpaceScrollGestureRecognizer {
     private var hasActivePhase = false
     private var hasFinished = false
     private var lastTimestamp: TimeInterval?
+    private var lastStepTimestamp: TimeInterval?
 
     mutating func reset() {
         self = Self()
@@ -66,7 +71,7 @@ struct SpaceScrollGestureRecognizer {
 
         let followsIdleGap =
             lastTimestamp.map {
-                !hasActivePhase && input.timestamp - $0 > Self.phaseLessIdleInterval
+                !hasActivePhase && input.timestamp - $0 > Self.phaseLessRearmInterval
             } ?? true
         if input.phase == .began || followsIdleGap {
             reset()
@@ -88,7 +93,14 @@ struct SpaceScrollGestureRecognizer {
             hasActivePhase = true
         }
         guard axis != .outside, axis != .vertical else { return .passThrough }
-        if hasResolved { return .consumed }
+        if hasResolved {
+            guard input.phase == .none, let lastStep = lastStepTimestamp,
+                input.timestamp - lastStep >= Self.phaseLessRearmInterval
+            else { return .consumed }
+            hasResolved = false
+            accumulatedX = 0
+            accumulatedY = 0
+        }
 
         let threshold = input.isPrecise ? Self.preciseThreshold : Self.wheelThreshold
         let recognitionDistance: CGFloat = input.isPrecise ? 8 : 0.25
@@ -108,6 +120,15 @@ struct SpaceScrollGestureRecognizer {
             else { return .passThrough }
             axis = .horizontal
             initialDirection = accumulatedX < 0 ? -1 : 1
+        }
+
+        if input.phase == .none {
+            // A wheel has no gesture to latch to: it steps the way its deltas
+            // add up, and a blip against the flick's direction is part of the sum.
+            guard abs(accumulatedX) >= threshold else { return .consumed }
+            hasResolved = true
+            lastStepTimestamp = input.timestamp
+            return .step(accumulatedX < 0 ? .next : .previous)
         }
 
         // Returning across the origin before acceptance abandons this candidate.

@@ -43,26 +43,42 @@ final class SpaceScrollGestureTests: XCTestCase {
                 decisions: [.passThrough, .passThrough, .passThrough, .passThrough, .step(.next)]
             ),
             Scenario(
-                name: "Phase-less continuous burst rearms only after an idle gap",
+                name: "Phase-less stream steps again after its last step ages, and forgets a remainder after a gap",
                 events: [
                     Event(input: input(-100, at: 0)),
                     Event(input: input(-100, at: 0.2)),
-                    Event(input: input(-100, at: 0.4)),
                     Event(input: input(100, at: 0.6)),
-                    Event(input: input(100, at: 0.8)),
-                    Event(input: input(100, at: 2)),
+                    Event(input: input(-30, at: 1)),
+                    Event(input: input(-30, at: 1.5)),
+                    Event(input: input(-10, at: 1.6)),
                 ],
-                decisions: [.step(.next), .consumed, .consumed, .consumed, .consumed, .step(.previous)]
+                decisions: [.step(.next), .consumed, .step(.previous), .consumed, .consumed, .step(.next)]
             ),
             Scenario(
-                name: "Wheel notches use their own units and one step per burst",
+                name: "Wheel notches use their own units, one step per notch, and a quick repeat is the same notch",
                 events: [
                     Event(input: input(-1, at: 0, precise: false)),
                     Event(input: input(-10, at: 0.05, precise: false)),
-                    Event(input: input(1, at: 0.1, precise: false)),
-                    Event(input: input(1, at: 1, precise: false)),
+                    Event(input: input(-1, at: 0.4, precise: false)),
+                    Event(input: input(1, at: 0.8, precise: false)),
                 ],
-                decisions: [.step(.next), .consumed, .consumed, .step(.previous)]
+                decisions: [.step(.next), .consumed, .step(.next), .step(.previous)]
+            ),
+            Scenario(
+                name: "Thumb-wheel flicks each step once, through their trailing deltas and an opening blip",
+                events: [
+                    Event(input: input(-0.1, at: 0, precise: false)),
+                    Event(input: input(-0.3, at: 0.02, precise: false)),
+                    Event(input: input(-0.8, at: 0.04, precise: false)),
+                    Event(input: input(-2, at: 0.06, precise: false)),
+                    Event(input: input(-0.1, at: 0.22, precise: false)),
+                    Event(input: input(0.3, at: 0.49, precise: false)),
+                    Event(input: input(-0.5, at: 0.51, precise: false)),
+                    Event(input: input(-1, at: 0.53, precise: false)),
+                ],
+                decisions: [
+                    .passThrough, .consumed, .step(.next), .consumed, .consumed, .consumed, .consumed, .step(.next),
+                ]
             ),
             Scenario(
                 name: "Returning across the origin before acceptance cancels without a compensating step",
