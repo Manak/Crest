@@ -62,6 +62,11 @@ tracked project file afterwards, so the tree stays clean and never conflicts
 with upstream's project changes. Open the project in Xcode only after running
 `xcodegen generate` yourself.
 
+`Personal/bin/codesign` is put first on PATH for the packaging step. It
+drops `--timestamp` from upstream's codesign calls: secure timestamps only
+matter for notarization, and they fail whenever Apple's timestamp server and
+this Mac disagree about the time.
+
 `source-update.py` is what the app calls: `status` prints the comparison as
 JSON, `prepare --stage` runs the sync and a staged build, `install --staged`
 installs it.
