@@ -123,6 +123,22 @@ final class SpaceScrollGestureTests: XCTestCase {
         }
     }
 
+    func testUnturnedWheelFollowsTheMacScrollDirectionSetting() throws {
+        let wheel = try scrollEvent(units: .line, horizontal: -1)
+        XCTAssertFalse(wheel.hasPreciseScrollingDeltas)
+        XCTAssertFalse(wheel.isDirectionInvertedFromDevice)
+        let raw = wheel.scrollingDeltaX
+        XCTAssertNotEqual(raw, 0)
+        XCTAssertEqual(SpaceScrollGestureEventAdapter.horizontalDelta(for: wheel, naturalScrolling: false), raw)
+        XCTAssertEqual(SpaceScrollGestureEventAdapter.horizontalDelta(for: wheel, naturalScrolling: true), -raw)
+
+        let precise = try scrollEvent(units: .pixel, horizontal: -40)
+        XCTAssertTrue(precise.hasPreciseScrollingDeltas)
+        XCTAssertEqual(
+            SpaceScrollGestureEventAdapter.horizontalDelta(for: precise, naturalScrolling: true),
+            precise.scrollingDeltaX)
+    }
+
     func testNativePagingTracksPointsAndSettlesBeforeCommitting() async throws {
         var spaces = nativeSpaces()
         var selections: [UUID] = []
@@ -456,6 +472,13 @@ final class SpaceScrollGestureTests: XCTestCase {
 
     // Geometry/lifecycle cases deliver enough display frames for the given
     // drag to arrive. The burst case separately tests coalescing and speed.
+    private func scrollEvent(units: CGScrollEventUnit, horizontal: Int32) throws -> NSEvent {
+        let event = try XCTUnwrap(
+            CGEvent(
+                scrollWheelEvent2Source: nil, units: units, wheelCount: 2, wheel1: 0, wheel2: horizontal, wheel3: 0))
+        return try XCTUnwrap(NSEvent(cgEvent: event))
+    }
+
     private func track(_ viewport: SpacePagerViewport<Text>, deltaX: CGFloat, token: UInt) -> Bool {
         guard viewport.updateInteractiveMotion(deltaX: deltaX, token: token) else { return false }
         for _ in 0..<60 { viewport.advanceFrame(interval: 1.0 / 60) }
