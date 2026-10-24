@@ -31,12 +31,22 @@ you prefer your commits replayed on top (it then force-pushes `mine` with
 `--force-with-lease`). If a merge conflicts, resolve it, `git commit`, and run
 `Personal/build-mac.sh`.
 
-`build-mac.sh` builds the `Crest` scheme in Release, signs it with your Apple
-Development identity (Personal Team `7Y29XS82V8`), strips the Sparkle update
-feed so the official release can never replace your build, and installs it in
-`/Applications`. Pass `--no-install` to get `~/Desktop/Crest.app` instead.
+`build-mac.sh` builds the same dual-engine app the official release ships:
+it downloads the prebuilt Chromium engine upstream publishes for this
+checkout (cached in `~/Library/Caches/Crest-local-release`), publishes the
+.NET core, builds the native UI framework, and runs upstream's own packager
+(`Scripts/control-plane/package-chromium-host.py`) with your Apple Development
+identity (Personal Team `7Y29XS82V8`). It then switches the bundle id to
+`com.manakkapoor.crest`, strips the Sparkle update feed so the official
+release can never replace your build, re-seals the app, and installs it in
+`/Applications`. Pass `--webkit` for the WebKit-only `Crest` scheme (faster,
+no engine download) or `--no-install` to get `~/Desktop/Crest.app` instead.
 Incremental rebuilds take a few minutes; a clean build is longer because the
-.NET core is compiled with NativeAOT.
+.NET core is compiled with NativeAOT and every binary in the engine is re-signed.
+
+If upstream changes the engine inputs before publishing the matching engine,
+the download fails with the engine tag; build with `--webkit` until it appears
+under the upstream releases.
 
 Upstream commits the generated `Crest.xcodeproj`, so don't run `xcodegen
 generate` unless you changed `project.yml`; a regenerate from a different
@@ -64,14 +74,11 @@ entry per fix). None of that applies to commits that only live on `mine`.
 
 ## What differs from the official app
 
-- **Engine.** This build is WebKit only. The official Mac app packages a
-  prebuilt Chromium engine (Chrome extensions, default engine). Upstream
-  publishes the matching engine for every checkout as a GitHub release asset
-  (`Scripts/control-plane/chromium_engine.py tag` prints the tag), and
-  `Scripts/install-local-macos-release.sh` shows the packaging steps, but that
-  script is hardwired to the author's Developer ID identity and provisioning
-  profile. Adapting it to an Apple Development identity without CloudKit is the
-  next step if you want Chromium in your build.
+- **Engine.** Same as the official app: Chromium by default with WebKit per
+  page, using upstream's published engine build. The whole bundle is signed
+  with your identity rather than the author's Developer ID, so it is not
+  notarized; Gatekeeper accepts it because it is built locally, not
+  downloaded.
 - **iCloud sync, push, passkeys.** The upstream entitlements reference the
   author's iCloud container and App ID, which only their team can provision.
   `Personal/Crest-Personal.entitlements` leaves them out, so iCloud sync and
