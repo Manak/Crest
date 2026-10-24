@@ -177,6 +177,7 @@ final class BrowserSoftwareUpdateModel {
         build: String? = nil,
         releaseNotes: String? = nil,
         informationURL: URL? = nil,
+        message: String? = nil,
         isInformationOnly: Bool,
         isFixture: Bool = false,
         allowsOfferRefresh: Bool = true,
@@ -198,10 +199,11 @@ final class BrowserSoftwareUpdateModel {
         self.install = install
         self.skip = skip
         self.dismiss = dismiss
-        message =
-            isInformationOnly
-            ? "This release is available from the Crest website."
-            : "A new version of Crest is ready to download."
+        self.message =
+            message
+            ?? (isInformationOnly
+                ? "This release is available from the Crest website."
+                : "A new version of Crest is ready to download.")
         present()
     }
 
@@ -347,6 +349,24 @@ final class BrowserSoftwareUpdateModel {
         )
     }
 
+    // MARK: - Actions - Source builds
+
+    /// A personal build is being made from source; `message` names its step.
+    func presentSourceBuild(message: String, cancellation: @escaping () -> Void) {
+        resetCallbacks()
+        phase = .building
+        self.message = message
+        progress = nil
+        self.cancellation = cancellation
+        present()
+    }
+
+    func setSourceBuildMessage(_ message: String) {
+        guard phase == .building else { return }
+        self.message = message
+        publishWidgetState()
+    }
+
     // MARK: - Actions - Installing
 
     /// An update Sparkle downloaded on its own. Restarting runs Sparkle's
@@ -357,6 +377,7 @@ final class BrowserSoftwareUpdateModel {
         build: String,
         releaseNotes: String?,
         informationURL: URL?,
+        message: String? = nil,
         isFixture: Bool = false,
         installAndRelaunch: @escaping () -> Void
     ) {
@@ -367,7 +388,7 @@ final class BrowserSoftwareUpdateModel {
         updateBuild = build
         self.releaseNotes = releaseNotes
         self.informationURL = informationURL
-        message = Self.automaticReadyMessage
+        self.message = message ?? Self.automaticReadyMessage
         progress = nil
         isInformationOnly = false
         isAutomaticUpdate = true
