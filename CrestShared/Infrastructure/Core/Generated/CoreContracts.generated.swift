@@ -1058,6 +1058,7 @@ struct AppPreferences: Equatable, Sendable {
         savedTabFaviconReturnsToSavedURL: false,
         splitFocusFollowsMouse: false,
         automaticallyShowsDeveloperToolbar: true,
+        showsRecentTabs: true,
         palette: PalettePreferences(
             layout: PaletteLayout.sections,
             sources: [
@@ -1079,7 +1080,8 @@ struct AppPreferences: Equatable, Sendable {
             completesInline: true,
             learnsChoices: true,
             searchesSitesWithTab: true,
-            showsReasons: false
+            showsReasons: false,
+            providerSpaceTrigger: SearchProviderSpaceTrigger.prefixedShortcut
         )
     )
 
@@ -1093,6 +1095,7 @@ struct AppPreferences: Equatable, Sendable {
     var savedTabFaviconReturnsToSavedURL: Bool
     var splitFocusFollowsMouse: Bool
     var automaticallyShowsDeveloperToolbar: Bool
+    var showsRecentTabs: Bool
     var palette: PalettePreferences
 }
 
@@ -4509,7 +4512,8 @@ struct PalettePreferences: Equatable, Sendable {
         completesInline: true,
         learnsChoices: true,
         searchesSitesWithTab: true,
-        showsReasons: false
+        showsReasons: false,
+        providerSpaceTrigger: SearchProviderSpaceTrigger.prefixedShortcut
     )
 
     var layout: PaletteLayout
@@ -4520,6 +4524,7 @@ struct PalettePreferences: Equatable, Sendable {
     var learnsChoices: Bool
     var searchesSitesWithTab: Bool
     var showsReasons: Bool
+    var providerSpaceTrigger: SearchProviderSpaceTrigger
 }
 
 struct PaletteRow: Equatable, Sendable {
@@ -4877,6 +4882,21 @@ struct ReadPageNetwork: PageRequest, Equatable, Sendable {
 struct ReassignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
     let command: ShortcutCommand
     let keys: KeyCombination
+}
+
+struct RecentTabItem: Equatable, Sendable {
+    let tabIDs: [UUID]
+    let focusedTabID: UUID
+}
+
+struct RecentTabList: Equatable, Sendable {
+    let items: [RecentTabItem]
+}
+
+struct RecentTabs: Query, Equatable, Sendable {
+    typealias Answer = RecentTabList
+
+    let windowID: UUID
 }
 
 struct RecordCloudFields: Intent, CloudTransportIntent, Equatable, Sendable {
@@ -5829,6 +5849,10 @@ struct ShowHistoryEntry: Intent, PageIntent, Equatable, Sendable {
 
 struct ShowImportSpace: Intent, SetupFlowIntent, Equatable, Sendable {
     let sourceSpaceID: UUID
+}
+
+struct ShowLeastRecentTab: Intent, WindowIntent, Equatable, Sendable {
+    let windowID: UUID
 }
 
 struct ShowMostRecentTab: Intent, WindowIntent, Equatable, Sendable {
@@ -16934,6 +16958,90 @@ struct SearchProviderOption: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `SearchProviderSpaceTrigger`. A member's wire tag is its index in `all`.
+struct SearchProviderSpaceTrigger: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var title: LocalizedStringResource { facts.title }
+    var example: LocalizedStringResource { facts.example }
+    var isEnabled: Bool { facts.isEnabled }
+    var requiresPrefix: Bool { facts.requiresPrefix }
+    private let facts: Facts
+
+    private init(
+        tag: Int,
+        name: String,
+        title: LocalizedStringResource,
+        example: LocalizedStringResource,
+        isEnabled: Bool,
+        requiresPrefix: Bool
+    ) {
+        self.tag = tag
+        facts = Facts(name: name, title: title, example: example, isEnabled: isEnabled, requiresPrefix: requiresPrefix)
+    }
+
+    static let off = SearchProviderSpaceTrigger(
+        tag: 0,
+        name: "off",
+        title: LocalizedStringResource("Off"),
+        example: LocalizedStringResource("A space after a provider’s shortcut stays a space."),
+        isEnabled: false,
+        requiresPrefix: false
+    )
+    static let prefixedShortcut = SearchProviderSpaceTrigger(
+        tag: 1,
+        name: "prefixedShortcut",
+        title: LocalizedStringResource("After $ and a shortcut"),
+        example: LocalizedStringResource("Type $yt and a space to search YouTube."),
+        isEnabled: true,
+        requiresPrefix: true
+    )
+    static let shortcut = SearchProviderSpaceTrigger(
+        tag: 2,
+        name: "shortcut",
+        title: LocalizedStringResource("After a shortcut"),
+        example: LocalizedStringResource("Type yt or $yt and a space to search YouTube."),
+        isEnabled: true,
+        requiresPrefix: false
+    )
+
+    static let all: [SearchProviderSpaceTrigger] = [off, prefixedShortcut, shortcut]
+
+    static func named(_ name: String?) -> SearchProviderSpaceTrigger? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: SearchProviderSpaceTrigger, rhs: SearchProviderSpaceTrigger) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let title: LocalizedStringResource
+        let example: LocalizedStringResource
+        let isEnabled: Bool
+        let requiresPrefix: Bool
+
+        init(
+            name: String,
+            title: LocalizedStringResource,
+            example: LocalizedStringResource,
+            isEnabled: Bool,
+            requiresPrefix: Bool
+        ) {
+            self.name = name
+            self.title = title
+            self.example = example
+            self.isEnabled = isEnabled
+            self.requiresPrefix = requiresPrefix
+        }
+    }
+}
+
 /// The members of the core's `SetupEntry`. A member's wire tag is its index in `all`.
 /// Core-only behavior, not emitted: `opensGuide`.
 struct SetupEntry: Hashable, Sendable {
@@ -17283,6 +17391,7 @@ struct ShortcutCommand: Hashable, Sendable {
         case findNext
         case findPrevious
         case capturePage
+        case mostRecentTabBackward
     }
 
     let tag: Int
@@ -19196,6 +19305,34 @@ struct ShortcutCommand: Hashable, Sendable {
         offersInPalette: true,
         isReservedFromPages: false
     )
+    static let mostRecentTabBackward = ShortcutCommand(
+        tag: 71,
+        kind: .mostRecentTabBackward,
+        name: "mostRecentTabBackward",
+        section: ShortcutSection.tabs,
+        title: LocalizedStringResource("Most Recent Tab Backward"),
+        searchTerms: LocalizedStringResource("toggle recent switch tabs oldest back"),
+        menuTitle: nil,
+        symbol: "arrow.left.arrow.right",
+        requiredCapability: nil,
+        selects: nil,
+        number: nil,
+        defaultShortcuts: [
+            ShortcutDefault(
+                platform: DevicePlatform.desktop,
+                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control, .shift]),
+                yieldsToOverrides: true
+            ),
+            ShortcutDefault(
+                platform: DevicePlatform.mobile,
+                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control, .shift]),
+                yieldsToOverrides: true
+            )
+        ],
+        paletteRest: nil,
+        offersInPalette: true,
+        isReservedFromPages: true
+    )
 
     static let all: [ShortcutCommand] = [
         newWindow,
@@ -19268,7 +19405,8 @@ struct ShortcutCommand: Hashable, Sendable {
         openFile,
         findNext,
         findPrevious,
-        capturePage
+        capturePage,
+        mostRecentTabBackward
     ]
 
     static func named(_ name: String?) -> ShortcutCommand? {
@@ -19399,7 +19537,12 @@ struct ShortcutMenu: Hashable, Sendable {
                 ShortcutCommand.clearUnpinnedTabs,
                 ShortcutCommand.archiveTab
             ],
-            [ShortcutCommand.previousTab, ShortcutCommand.nextTab, ShortcutCommand.mostRecentTab],
+            [
+                ShortcutCommand.previousTab,
+                ShortcutCommand.nextTab,
+                ShortcutCommand.mostRecentTab,
+                ShortcutCommand.mostRecentTabBackward
+            ],
             [
                 ShortcutCommand.splitWithNextTab,
                 ShortcutCommand.focusNextSplitCard,

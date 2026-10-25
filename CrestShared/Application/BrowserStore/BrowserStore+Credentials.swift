@@ -31,6 +31,15 @@ extension BrowserStore {
         return try await credentialVault.descriptors(in: spaceID)
     }
 
+    /// How many saved passwords in the Space no longer read back, which every
+    /// list and suggestion leaves out.
+    func unreadableCredentialCount(in spaceID: UUID) async throws -> Int {
+        guard spaceModel(spaceID) != nil else {
+            throw CredentialVaultError.missingSpace
+        }
+        return try await credentialVault.unreadableCredentialCount(in: spaceID)
+    }
+
     func credentialSuggestions(
         for url: URL,
         in spaceID: UUID
@@ -425,6 +434,13 @@ extension BrowserStore {
             throw CredentialVaultError.missingSpace
         }
         try await credentialVault.delete(id: id, in: spaceID)
+    }
+
+    func deleteUnreadableCredentials(in spaceID: UUID) async throws {
+        guard spaceModel(spaceID) != nil else {
+            throw CredentialVaultError.missingSpace
+        }
+        try await credentialVault.deleteUnreadableCredentials(in: spaceID)
     }
 
     func replaceCredentialInventory(

@@ -106,6 +106,7 @@ internal static partial class StoredSessionCodec {
         public const string Placement = "placement";
         public const string PositionModifiedAt = "positionModifiedAt";
         public const string PrefersOpenTabs = "prefersOpenTabs";
+        public const string ProviderSpaceTrigger = "providerSpaceTrigger";
         public const string Profile = "profile";
         public const string ProfileId = "profileID";
         public const string RawValue = "rawValue";
@@ -128,6 +129,7 @@ internal static partial class StoredSessionCodec {
         public const string SelectedSearchProviderId = "selectedSearchProviderID";
         public const string ShowsOutline = "showsOutline";
         public const string ShowsReasons = "showsReasons";
+        public const string ShowsRecentTabs = "showsRecentTabs";
         public const string ShowsTexture = "showsTexture";
         public const string ShowsTopHit = "showsTopHit";
         public const string Source = "source";

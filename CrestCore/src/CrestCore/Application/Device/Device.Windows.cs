@@ -58,6 +58,22 @@ internal sealed partial class Device {
         lock (gate) return open.TryGetValue(windowId, out var window) ? window : throw new Rejected(new WindowNotOpen(windowId));
     }
 
+    /// What `window` switches between in `space` (see `Window.RecentItems`).
+    /// While it has listed no other tab there, as after a launch or in a new
+    /// window, the Space's tab used last stands second, a split as one item,
+    /// unless another open window shows it. A locked Space lists nothing, as
+    /// its palette offers none of its tabs.
+    internal IReadOnlyList<RecentTabItem> RecentItems(Window window, SpaceState space) {
+        if (Workspace(window.WorkspaceId).IsLocked(space)) return [];
+        lock (gate) {
+            var items = window.RecentItems(space);
+            if (items.Count != 1) return items;
+            HashSet<Guid> elsewhere = [.. open.Values.Where(other => other.Id != window.Id)
+                .Select(other => other.Tab(space.Id)).OfType<Guid>()];
+            return window.LastUsed(space, elsewhere) is { } last ? [items[0], last] : items;
+        }
+    }
+
     /// Where the open window stands in `spaceId`, or in the Space it shows
     /// when that is null: its workspace, that Space, and the tab it shows
     /// there, if any. Null for a window that is not open.

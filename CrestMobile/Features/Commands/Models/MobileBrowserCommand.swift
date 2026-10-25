@@ -33,7 +33,9 @@ struct MobileBrowserCommand {
         .previousTab, isEnabled: { $0.tabCount > 1 }, run: { $0.selectPreviousTab() })
     static let nextTab = MobileBrowserCommand(.nextTab, isEnabled: { $0.tabCount > 1 }, run: { $0.selectNextTab() })
     static let mostRecentTab = MobileBrowserCommand(
-        .mostRecentTab, isEnabled: { $0.tabCount > 1 }, run: { $0.selectMostRecentTab() })
+        .mostRecentTab, isEnabled: { $0.canJumpToRecentTab }, run: { $0.selectMostRecentTab() })
+    static let mostRecentTabBackward = MobileBrowserCommand(
+        .mostRecentTabBackward, isEnabled: { $0.canJumpToRecentTab }, run: { $0.selectLeastRecentTab() })
     static let splitWithNextTab = MobileBrowserCommand(
         .splitWithNextTab, isEnabled: { $0.canSplitWithNextTab }, run: { $0.splitWithNextTab() })
     static let focusNextSplitCard = MobileBrowserCommand(
@@ -84,8 +86,8 @@ struct MobileBrowserCommand {
     static let all = [
         closeTabOrWindow, back, forward, reloadPage, stopLoading, reloadFromOrigin, toggleSelectedTabPinned,
         duplicateTab,
-        reopenClosedTab, clearUnpinnedTabs, archiveTab, previousTab, nextTab, mostRecentTab, splitWithNextTab,
-        focusNextSplitCard,
+        reopenClosedTab, clearUnpinnedTabs, archiveTab, previousTab, nextTab, mostRecentTab, mostRecentTabBackward,
+        splitWithNextTab, focusNextSplitCard,
         focusPreviousSplitCard, removeTabFromSplit, separateSplitTabs, moveSplitCardLeft, moveSplitCardRight,
         previousSpace,
         nextSpace, toggleReaderMode, toggleContentBlocking, findInPage, zoomIn, zoomOut, actualSize, copyPageLink,

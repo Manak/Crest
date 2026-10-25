@@ -61,6 +61,10 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
             .allowsHitTesting(false)
             .accessibilityHidden(true)
 
+            // A held Most Recent Tab shortcut shows the recent tabs over the
+            // window, fullscreen page or not.
+            BrowserRecentTabsLayer(chrome: model.chrome)
+
             // Notices show over a fullscreen page too, so one posted there
             // is never lost.
             BrowserNoticeLayer(chrome: model.chrome)

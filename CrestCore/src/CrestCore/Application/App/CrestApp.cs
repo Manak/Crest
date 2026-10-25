@@ -144,6 +144,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     /// are delivered once the lock is released.
     internal IReadOnlyList<Change> Turn(Action<ChangeFeed> apply) {
         IReadOnlyList<Change> published;
+        storedSync?.RequireNoTransactionHeldHere();
         lock (gate) {
             var changes = new ChangeFeed();
             apply(changes);

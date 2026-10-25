@@ -19,11 +19,11 @@ Make Crest your default browser, choose what happens when Crest opens, and pick 
 
 ## Tabs
 
-Choose whether tabs opened from links get focus with **Switch to tabs opened from links**, and whether to **Follow tabs moved to another Space**. Set what pinned and saved tabs do after you close them, and whether clicking the favicon returns to the saved URL. Tabs also holds sidebar widgets and, on Mac, Split View's **Focus follows pointer**.
+Choose whether tabs opened from links get focus with **Switch to tabs opened from links**, and whether to **Follow tabs moved to another Space**. Set what pinned and saved tabs do after you close them, and whether clicking the favicon returns to the saved URL. Tabs also holds sidebar widgets and, on Mac, Split View's **Focus follows pointer** and **Show recent tabs while switching**, which shows your recent tabs while you hold Control-Tab.
 
 ## Search
 
-- **Default search**: the search engine or AI assistant every Space uses unless it chose its own, the one **Private windows** use, and whether the default gives **Search suggestions**. **Tab to search providers** turns provider names and shortcuts in the command palette on or off.
+- **Default search**: the search engine or AI assistant every Space uses unless it chose its own, the one **Private windows** use, and whether the default gives **Search suggestions**. **Tab to search providers** lets Tab choose a provider by its name or shortcut in the command palette, and **Space to search providers** lets a space after `$` and a shortcut, or after a shortcut alone, choose it.
 
 The command palette settings come next:
 
