@@ -1,14 +1,39 @@
 diff --git a/CrestMac/Features/Sidebar/BrowserSidebar/Components/BrowserSidebarLoadedContent/BrowserSidebarLoadedContent.swift b/CrestMac/Features/Sidebar/BrowserSidebar/Components/BrowserSidebarLoadedContent/BrowserSidebarLoadedContent.swift
-index cf7f8b84..3db52cd6 100644
+index cf7f8b84..58c0ac52 100644
 --- a/CrestMac/Features/Sidebar/BrowserSidebar/Components/BrowserSidebarLoadedContent/BrowserSidebarLoadedContent.swift
 +++ b/CrestMac/Features/Sidebar/BrowserSidebar/Components/BrowserSidebarLoadedContent/BrowserSidebarLoadedContent.swift
-@@ -170,7 +170,9 @@ struct BrowserSidebarLoadedContent: View {
+@@ -25,6 +25,8 @@ struct BrowserSidebarLoadedContent: View {
+     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+     @Environment(\.browserSidebarWidgetRuntime) private var widgetRuntime
+     @Environment(\.spacePagerPresentation) private var inheritedPagerPresentation
++    @Environment(\.crestPluginHooks) private var hooks
++    @Environment(CrestPluginHost.self) private var plugins: CrestPluginHost?
+     @State private var standalonePagerPresentation = SpacePagerPresentation()
+ 
+     private var spacePagerPresentation: SpacePagerPresentation {
+@@ -162,6 +164,14 @@ struct BrowserSidebarLoadedContent: View {
+         }
+     }
+ 
++    /// The shown Space's choice of list for the lists button, while the
++    /// lists-button-choice plugin is on.
++    private var listsChoice: ListsButtonChoice? {
++        guard let plugins, hooks.isEnabled(ListsButtonChoice.pluginID) else { return nil }
++        return ListsButtonChoice(
++            storage: plugins.storage(for: ListsButtonChoice.pluginID), spaceID: context.browser.shownSpace?.id)
++    }
++
+     private var switcherAccessories: BrowserSpaceSwitcherAccessories {
+         BrowserSpaceSwitcherAccessories(
+             sidebarToggle: BrowserSpaceSwitcherSidebarToggle(
+@@ -170,7 +180,9 @@ struct BrowserSidebarLoadedContent: View {
              ),
              commonLists: BrowserSpaceSwitcherCommonLists(
                  isExpanded: context.utilityPresentation.isSwitcherExpanded,
-+                surface: context.utilityPresentation.triggerSurface,
-                 toggle: context.toggleUtilitySwitcher,
-+                choose: context.utilityPresentation.chooseTriggerSurface,
+-                toggle: context.toggleUtilitySwitcher,
++                surface: listsChoice?.surface,
++                toggle: { context.toggleUtilitySwitcher(listsChoice?.surface) },
++                choose: { listsChoice?.choose($0) },
                  recordTriggerFrame:
                      context.utilityPresentation.recordTriggerFrame
              )

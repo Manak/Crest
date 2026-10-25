@@ -1,0 +1,14 @@
+diff --git a/CrestShared/Features/Sidebar/BrowserSidebar/Models/BrowserSidebarContext.swift b/CrestShared/Features/Sidebar/BrowserSidebar/Models/BrowserSidebarContext.swift
+index eed3888e..d472f1f4 100644
+--- a/CrestShared/Features/Sidebar/BrowserSidebar/Models/BrowserSidebarContext.swift
++++ b/CrestShared/Features/Sidebar/BrowserSidebar/Models/BrowserSidebarContext.swift
+@@ -47,6 +47,7 @@ struct BrowserSidebarContext {
+     let dismissUtilityOnBlankSpace: () -> Void
+ 
+     /// Opens or closes the archive, history, and downloads switcher, landing on
+-    /// downloads when some have not been looked at yet.
+-    let toggleUtilitySwitcher: () -> Void
++    /// downloads when some have not been looked at yet, else on the list the
++    /// shown Space chose for its lists button, when it chose one.
++    let toggleUtilitySwitcher: (BrowserUtilitySurface?) -> Void
+ }

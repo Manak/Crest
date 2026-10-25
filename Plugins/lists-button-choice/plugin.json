@@ -1,12 +1,18 @@
 {
   "id": "lists-button-choice",
   "name": "Lists button choice",
-  "version": "1.0.0",
-  "summary": "Right-click the lists button at the bottom of the sidebar to choose whether it opens Archive, History or Downloads.",
-  "platforms": ["macOS"],
-  "hooks": { "bootstrap": 1 },
+  "version": "2.0.0",
+  "summary": "Right-click the lists button at the bottom of the sidebar to choose, for each Space, whether it opens Archive, History or Downloads.",
+  "platforms": [
+    "macOS"
+  ],
+  "hooks": {
+    "bootstrap": 1
+  },
   "files": [
     "CrestShared/Features/Chrome/Models/BrowserUtilityPresentationState.swift",
+    "CrestShared/Features/Sidebar/BrowserSidebar.swift",
+    "CrestShared/Features/Sidebar/BrowserSidebar/Models/BrowserSidebarContext.swift",
     "CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift",
     "CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCompactStrip.swift",
     "CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Models/BrowserSpaceSwitcherAccessories.swift",

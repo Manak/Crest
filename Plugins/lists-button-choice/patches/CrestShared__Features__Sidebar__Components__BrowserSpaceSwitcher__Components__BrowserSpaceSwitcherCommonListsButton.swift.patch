@@ -1,25 +1,26 @@
 diff --git a/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift b/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift
-index 63e0d9d8..2549be41 100644
+index 63e0d9d8..b2ac0acb 100644
 --- a/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift
 +++ b/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift
-@@ -1,23 +1,55 @@
+@@ -1,23 +1,59 @@
  import SwiftUI
  
  /// The switcher's page-side accessory: one control for the archive, history,
 -/// and downloads lists, badged when downloads have finished unseen.
 +/// and downloads lists, badged when downloads have finished unseen. While the
-+/// lists-button-choice plugin is on it wears the symbol of the list it opens,
-+/// which its menu changes.
++/// lists-button-choice plugin is on it wears the symbol of the list the shown
++/// Space chose for it, which its menu changes.
  struct BrowserSpaceSwitcherCommonListsButton: View {
 +    static let choicePluginID = "lists-button-choice"
 +
      let isExpanded: Bool
-+    let surface: BrowserUtilitySurface
++    /// The list the shown Space chose, or nil for the list opened last.
++    let surface: BrowserUtilitySurface?
      let downloads: [DownloadState]
      let newDownloads: [DownloadState]
      let badgeColor: Color
      let action: () -> Void
-+    let choose: (BrowserUtilitySurface) -> Void
++    let choose: (BrowserUtilitySurface?) -> Void
      let recordFrame: (CGRect) -> Void
  
      @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -32,13 +33,14 @@ index 63e0d9d8..2549be41 100644
      var body: some View {
 -        Button("Common Lists", systemImage: "archivebox", action: action)
 +        if hooks.isEnabled(Self.choicePluginID) {
-+            control(symbol: surface.systemImage).contextMenu { listPicker }
++            control(symbol: surface?.systemImage ?? "archivebox").contextMenu { listPicker }
 +        } else {
 +            control(symbol: "archivebox")
 +        }
 +    }
 +
-+    /// The list the button opens, chosen from its menu.
++    /// The list the button opens for the shown Space, chosen from its menu;
++    /// Last Opened leaves the Space without a choice.
 +    private var listPicker: some View {
 +        Picker(selection: Binding(get: { surface }, set: choose)) {
 +            ForEach(BrowserUtilitySurface.all) { surface in
@@ -47,8 +49,10 @@ index 63e0d9d8..2549be41 100644
 +                } icon: {
 +                    Image(systemName: surface.systemImage)
 +                }
-+                .tag(surface)
++                .tag(Optional(surface))
 +            }
++            Divider()
++            Text("Last Opened").tag(BrowserUtilitySurface?.none)
 +        } label: {
 +            EmptyView()
 +        }
@@ -60,11 +64,11 @@ index 63e0d9d8..2549be41 100644
              .labelStyle(.iconOnly)
              .buttonStyle(.borderless)
              .frame(
-@@ -77,10 +109,11 @@ struct BrowserSpaceSwitcherCommonListsButton: View {
+@@ -77,10 +113,11 @@ struct BrowserSpaceSwitcherCommonListsButton: View {
  #if DEBUG
      #Preview("Download badge and expansion") {
          @Previewable @State var expanded = false
-+        @Previewable @State var surface = BrowserUtilitySurface.archive
++        @Previewable @State var surface: BrowserUtilitySurface? = .archive
          BrowserSpaceSwitcherCommonListsButton(
 -            isExpanded: expanded, downloads: [BrowserUtilityListPreviewFixture.activeDownload],
 +            isExpanded: expanded, surface: surface, downloads: [BrowserUtilityListPreviewFixture.activeDownload],

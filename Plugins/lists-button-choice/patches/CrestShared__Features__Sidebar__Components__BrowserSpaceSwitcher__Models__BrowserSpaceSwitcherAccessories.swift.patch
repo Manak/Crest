@@ -1,18 +1,19 @@
 diff --git a/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Models/BrowserSpaceSwitcherAccessories.swift b/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Models/BrowserSpaceSwitcherAccessories.swift
-index 29f3c041..c3635d9a 100644
+index 29f3c041..1c83d954 100644
 --- a/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Models/BrowserSpaceSwitcherAccessories.swift
 +++ b/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Models/BrowserSpaceSwitcherAccessories.swift
-@@ -25,8 +25,14 @@ struct BrowserSpaceSwitcherSidebarToggle {
+@@ -25,8 +25,15 @@ struct BrowserSpaceSwitcherSidebarToggle {
  /// not been looked at yet.
  struct BrowserSpaceSwitcherCommonLists {
      let isExpanded: Bool
 +
-+    /// The list the button opens and wears the symbol of.
-+    let surface: BrowserUtilitySurface
++    /// The list the shown Space chose for the button to open and wear the
++    /// symbol of, while the lists-button-choice plugin is on; nil for none.
++    let surface: BrowserUtilitySurface?
      let toggle: () -> Void
  
-+    /// Makes another list the one the button opens.
-+    let choose: (BrowserUtilitySurface) -> Void
++    /// Makes `surface` the shown Space's list, or nil for none.
++    let choose: (BrowserUtilitySurface?) -> Void
 +
      /// Reports where the trigger ended up, so the lists can fan out from it.
      let recordTriggerFrame: (CGRect) -> Void
