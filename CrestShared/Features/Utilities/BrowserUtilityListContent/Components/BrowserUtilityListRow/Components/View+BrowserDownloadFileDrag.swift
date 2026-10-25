@@ -17,17 +17,18 @@ extension View {
 }
 
 #if os(macOS)
-    /// A download without a finished file on disk is not a drag source at
-    /// all; the row stays a plain button.
+    /// A download without a finished file on disk, or whose file the system
+    /// will not offer, is not a drag source at all; the row stays a plain
+    /// button rather than starting a drag that could deliver nothing.
     private struct BrowserDownloadFileDragSource: ViewModifier {
         let download: DownloadState
 
         @ViewBuilder
         func body(content: Content) -> some View {
-            if let fileURL {
+            if let fileURL, let provider = NSItemProvider(contentsOf: fileURL) {
                 content
                     .onDrag {
-                        NSItemProvider(contentsOf: fileURL) ?? NSItemProvider()
+                        provider
                     } preview: {
                         BrowserDownloadFileDragPreview(fileURL: fileURL)
                     }

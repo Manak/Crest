@@ -64,6 +64,7 @@ struct BrowserSpaceSwitcherCommonListsButton: View {
             }
             .zIndex(newDownloads.isEmpty ? 0 : 1)
             .help("Archive, History, and Downloads")
+            .accessibilityLabel(Text(openedSurface.title))
             .accessibilityValue(accessibilityValue)
             .accessibilityIdentifier("common-lists-button")
             .onGeometryChange(for: CGRect.self) { proxy in
