@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 2,
+  "entries": {
+    "source-updates-from-checkout": {
+      "category": "new",
+      "message": "Software Update checks the Git checkout against upstream, builds the update in the background while you keep browsing, and installs it on relaunch."
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 2,
+  "entries": {
+    "sidebar-lists-button-choice": {
+      "category": "new",
+      "message": "Right-click the lists button at the bottom of the sidebar to choose whether it opens Archive, History or Downloads."
+    }
+  }
+}

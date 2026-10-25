@@ -136,7 +136,6 @@ struct BrowserSidebarTabRowSurface: ViewModifier {
             assignment: configuration.runtimeAssignment,
             isLoaded: configuration.isLoaded,
             renameTab: interaction.beginRenaming,
-            editSavedAddress: interaction.beginEditingSavedAddress,
             changeIcon: interaction.beginChangingIcon
         )
         .tint(.primary)

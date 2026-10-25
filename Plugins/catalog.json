@@ -1,0 +1,9 @@
+{
+  "plugins": [
+    { "id": "download-file-drag", "enabled": true },
+    { "id": "typed-saved-address", "enabled": true },
+    { "id": "lists-button-choice", "enabled": true },
+    { "id": "mouse-wheel-spaces", "enabled": true },
+    { "id": "source-updates", "enabled": true }
+  ]
+}

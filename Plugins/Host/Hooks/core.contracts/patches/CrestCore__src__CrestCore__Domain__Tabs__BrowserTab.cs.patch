@@ -1,0 +1,13 @@
+diff --git a/CrestCore/src/CrestCore/Domain/Tabs/BrowserTab.cs b/CrestCore/src/CrestCore/Domain/Tabs/BrowserTab.cs
+index e1afa352..55056f39 100644
+--- a/CrestCore/src/CrestCore/Domain/Tabs/BrowserTab.cs
++++ b/CrestCore/src/CrestCore/Domain/Tabs/BrowserTab.cs
+@@ -5,7 +5,7 @@ namespace CrestCore.Domain;
+ /// A tab while its Space's organization is being edited. Its durable value is
+ /// <see cref="State"/>; every rule below replaces that value rather than keeping a
+ /// second copy of any field.
+-public sealed class BrowserTab {
++public sealed partial class BrowserTab {
+     #region Variables
+ 
+     /// The most characters a rename keeps.

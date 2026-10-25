@@ -100,3 +100,10 @@ contract for setup, validation and change discipline.
 - During cleanup, consolidate overlapping fixtures and cases rather than
   adding a new test framework. Run the affected retained tests and report what
   was removed, what protection remains, and any remaining validation gaps.
+
+## Fork plugins
+
+- In this fork, every personal addition is a plugin under `Plugins/`, patched
+  into upstream code at build time. Read `Plugins/README.md` and follow
+  `Plugins/AGENTS.md` for plugin work; the versioning and release-note rules
+  above apply to upstream contributions, not to plugin-only commits.

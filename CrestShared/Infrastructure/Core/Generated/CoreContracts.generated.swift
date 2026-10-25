@@ -5576,13 +5576,6 @@ struct SetPrivateSearch: Intent, SearchCatalogIntent, Equatable, Sendable {
     let provider: SearchProvider.Seed
 }
 
-struct SetSavedAddress: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let tabID: UUID
-    let input: String
-}
-
 struct SetSearchOption: Intent, SearchCatalogIntent, Equatable, Sendable {
     let provider: BuiltInSearchProvider
     let option: SearchProviderOption

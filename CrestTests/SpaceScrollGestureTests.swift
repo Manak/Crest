@@ -43,42 +43,26 @@ final class SpaceScrollGestureTests: XCTestCase {
                 decisions: [.passThrough, .passThrough, .passThrough, .passThrough, .step(.next)]
             ),
             Scenario(
-                name: "Phase-less stream steps again after its last step ages, and forgets a remainder after a gap",
+                name: "Phase-less continuous burst rearms only after an idle gap",
                 events: [
                     Event(input: input(-100, at: 0)),
                     Event(input: input(-100, at: 0.2)),
+                    Event(input: input(-100, at: 0.4)),
                     Event(input: input(100, at: 0.6)),
-                    Event(input: input(-30, at: 1)),
-                    Event(input: input(-30, at: 1.5)),
-                    Event(input: input(-10, at: 1.6)),
+                    Event(input: input(100, at: 0.8)),
+                    Event(input: input(100, at: 2)),
                 ],
-                decisions: [.step(.next), .consumed, .step(.previous), .consumed, .consumed, .step(.next)]
+                decisions: [.step(.next), .consumed, .consumed, .consumed, .consumed, .step(.previous)]
             ),
             Scenario(
-                name: "Wheel notches use their own units, one step per notch, and a quick repeat is the same notch",
+                name: "Wheel notches use their own units and one step per burst",
                 events: [
                     Event(input: input(-1, at: 0, precise: false)),
                     Event(input: input(-10, at: 0.05, precise: false)),
-                    Event(input: input(-1, at: 0.4, precise: false)),
-                    Event(input: input(1, at: 0.8, precise: false)),
+                    Event(input: input(1, at: 0.1, precise: false)),
+                    Event(input: input(1, at: 1, precise: false)),
                 ],
-                decisions: [.step(.next), .consumed, .step(.next), .step(.previous)]
-            ),
-            Scenario(
-                name: "Thumb-wheel flicks each step once, through their trailing deltas and an opening blip",
-                events: [
-                    Event(input: input(-0.1, at: 0, precise: false)),
-                    Event(input: input(-0.3, at: 0.02, precise: false)),
-                    Event(input: input(-0.8, at: 0.04, precise: false)),
-                    Event(input: input(-2, at: 0.06, precise: false)),
-                    Event(input: input(-0.1, at: 0.22, precise: false)),
-                    Event(input: input(0.3, at: 0.49, precise: false)),
-                    Event(input: input(-0.5, at: 0.51, precise: false)),
-                    Event(input: input(-1, at: 0.53, precise: false)),
-                ],
-                decisions: [
-                    .passThrough, .consumed, .step(.next), .consumed, .consumed, .consumed, .consumed, .step(.next),
-                ]
+                decisions: [.step(.next), .consumed, .consumed, .step(.previous)]
             ),
             Scenario(
                 name: "Returning across the origin before acceptance cancels without a compensating step",
@@ -121,22 +105,6 @@ final class SpaceScrollGestureTests: XCTestCase {
                 XCTAssertEqual(actual, scenario.decisions)
             }
         }
-    }
-
-    func testUnturnedWheelFollowsTheMacScrollDirectionSetting() throws {
-        let wheel = try scrollEvent(units: .line, horizontal: -1)
-        XCTAssertFalse(wheel.hasPreciseScrollingDeltas)
-        XCTAssertFalse(wheel.isDirectionInvertedFromDevice)
-        let raw = wheel.scrollingDeltaX
-        XCTAssertNotEqual(raw, 0)
-        XCTAssertEqual(SpaceScrollGestureEventAdapter.horizontalDelta(for: wheel, naturalScrolling: false), raw)
-        XCTAssertEqual(SpaceScrollGestureEventAdapter.horizontalDelta(for: wheel, naturalScrolling: true), -raw)
-
-        let precise = try scrollEvent(units: .pixel, horizontal: -40)
-        XCTAssertTrue(precise.hasPreciseScrollingDeltas)
-        XCTAssertEqual(
-            SpaceScrollGestureEventAdapter.horizontalDelta(for: precise, naturalScrolling: true),
-            precise.scrollingDeltaX)
     }
 
     func testNativePagingTracksPointsAndSettlesBeforeCommitting() async throws {
@@ -472,13 +440,6 @@ final class SpaceScrollGestureTests: XCTestCase {
 
     // Geometry/lifecycle cases deliver enough display frames for the given
     // drag to arrive. The burst case separately tests coalescing and speed.
-    private func scrollEvent(units: CGScrollEventUnit, horizontal: Int32) throws -> NSEvent {
-        let event = try XCTUnwrap(
-            CGEvent(
-                scrollWheelEvent2Source: nil, units: units, wheelCount: 2, wheel1: 0, wheel2: horizontal, wheel3: 0))
-        return try XCTUnwrap(NSEvent(cgEvent: event))
-    }
-
     private func track(_ viewport: SpacePagerViewport<Text>, deltaX: CGFloat, token: UInt) -> Bool {
         guard viewport.updateInteractiveMotion(deltaX: deltaX, token: token) else { return false }
         for _ in 0..<60 { viewport.advanceFrame(interval: 1.0 / 60) }

@@ -1,0 +1,11 @@
+{
+  "id": "software-updates.provider",
+  "version": 1,
+  "summary": "One plugin provides software updates in place of the Sparkle feed, with a build phase and its own settings rows.",
+  "files": [
+    "CrestMac/Features/SoftwareUpdates/Services/BrowserSoftwareUpdateService.swift",
+    "CrestMac/Features/SoftwareUpdates/Models/BrowserSoftwareUpdateModel.swift",
+    "CrestShared/Application/SidebarWidgets/BrowserSoftwareUpdatePhase.swift",
+    "CrestMac/Features/Settings/Components/BrowserPlatformSoftwareUpdateSettingsSection.swift"
+  ]
+}

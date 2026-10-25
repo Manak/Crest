@@ -17,6 +17,19 @@ syncing is low friction.
 | Installed app | `/Applications/Crest.app`, bundle id `com.manakkapoor.crest` |
 | App data | Keyed by the bundle id, e.g. `~/Library/Preferences/com.manakkapoor.crest.plist` and `~/Library/WebKit/com.manakkapoor.crest`. Separate from the official app's data. |
 
+## Plugins
+
+Everything this fork adds to Crest is a plugin under `Plugins/`: the typed
+saved address for pinned tabs, the download rows you can drag out as files,
+the lists button's menu, the mouse-wheel Space switching, and the in-app
+updater itself. `mine` never carries an edited upstream file; the build
+patches a small set of hooks in, compiles the plugins beside upstream's code,
+and takes the hooks out again. A plugin whose hook no longer applies after an
+upstream sync is left out of that build, and Settings → Plugins says why.
+Each plugin has its own version and release notes. `Plugins/README.md` has
+the whole model; `Plugins/crest-plugins.py status` shows where things stand,
+and `status --revision upstream/main` shows what the next sync would break.
+
 ## Day to day
 
 The easiest way: **Crest → Settings → About → Check for Updates**. In a
@@ -48,7 +61,9 @@ on top instead (force-pushes `mine` with `--force-with-lease`), or `--no-push`.
 A conflicting merge is aborted and reported; resolve it with `git merge main`,
 commit, and build again. The in-app updater shows the same error.
 
-`build-mac.sh` builds the same dual-engine app the official release ships:
+`build-mac.sh` applies the plugins first (`Plugins/crest-plugins.py apply`)
+and takes them out again when it finishes; `--no-plugins` builds plain
+upstream Crest. It then builds the same dual-engine app the official release ships:
 it downloads the prebuilt Chromium engine upstream publishes for this
 checkout (cached in `~/Library/Caches/Crest-local-release`), publishes the
 .NET core, builds the native UI framework, and runs upstream's own packager
@@ -62,11 +77,12 @@ Incremental rebuilds take a few minutes; a clean build is longer because the
 .NET core is compiled with NativeAOT and every binary in the engine is re-signed.
 `--stage /path/Crest.app` builds without installing and `--install-staged
 /path/Crest.app` installs such a build; the in-app updater uses that pair.
-Each build regenerates `Crest.xcodeproj` (so Swift files added under
-`CrestMac/Features/SoftwareUpdates/Source/` are compiled) and restores the
-tracked project file afterwards, so the tree stays clean and never conflicts
-with upstream's project changes. Open the project in Xcode only after running
-`xcodegen generate` yourself.
+Each build regenerates `Crest.xcodeproj` (so the plugin sources under
+`Plugins/.build/` are compiled) and restores the tracked project file
+afterwards, so the tree stays clean and never conflicts with upstream's
+project changes. To work in Xcode, run `Plugins/crest-plugins.py apply --dev`
+and `xcodegen generate` yourself, and `Plugins/crest-plugins.py revert`
+before committing.
 
 `Personal/bin/codesign` is put first on PATH for the packaging step. It
 drops `--timestamp` from upstream's codesign calls: secure timestamps only
@@ -116,8 +132,10 @@ for tabs that have none; `--replace` overwrites the ones Crest already has.
 ## Making your own changes
 
 Work on `mine` (or on a feature branch off `mine`, merged back into `mine`).
-Commit as usual and `git push`. Keep personal files under `Personal/` where
-possible so upstream syncs rarely conflict.
+Commit as usual and `git push`. A change to Crest's behavior is a plugin
+under `Plugins/` (see `Plugins/README.md`); fork tooling stays under
+`Personal/`. Neither touches an upstream file in the committed tree, so
+upstream syncs do not conflict.
 
 If you want to contribute a change back to upstream, branch from `main`, not
 `mine`, so the pull request carries only that change:

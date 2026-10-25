@@ -1,0 +1,71 @@
+diff --git a/CrestMac/Features/SoftwareUpdates/Models/BrowserSoftwareUpdateModel.swift b/CrestMac/Features/SoftwareUpdates/Models/BrowserSoftwareUpdateModel.swift
+index 42d55c82..12f153f7 100644
+--- a/CrestMac/Features/SoftwareUpdates/Models/BrowserSoftwareUpdateModel.swift
++++ b/CrestMac/Features/SoftwareUpdates/Models/BrowserSoftwareUpdateModel.swift
+@@ -177,6 +177,7 @@ final class BrowserSoftwareUpdateModel {
+         build: String? = nil,
+         releaseNotes: String? = nil,
+         informationURL: URL? = nil,
++        message: String? = nil,
+         isInformationOnly: Bool,
+         isFixture: Bool = false,
+         allowsOfferRefresh: Bool = true,
+@@ -198,10 +199,11 @@ final class BrowserSoftwareUpdateModel {
+         self.install = install
+         self.skip = skip
+         self.dismiss = dismiss
+-        message =
+-            isInformationOnly
+-            ? "This release is available from the Crest website."
+-            : "A new version of Crest is ready to download."
++        self.message =
++            message
++            ?? (isInformationOnly
++                ? "This release is available from the Crest website."
++                : "A new version of Crest is ready to download.")
+         present()
+     }
+ 
+@@ -347,6 +349,25 @@ final class BrowserSoftwareUpdateModel {
+         )
+     }
+ 
++    // MARK: - Actions - Builds
++
++    /// An update is being built, by a provider that makes updates from
++    /// source; `message` names its step.
++    func presentBuild(message: String, cancellation: @escaping () -> Void) {
++        resetCallbacks()
++        phase = .building
++        self.message = message
++        progress = nil
++        self.cancellation = cancellation
++        present()
++    }
++
++    func setBuildMessage(_ message: String) {
++        guard phase == .building else { return }
++        self.message = message
++        publishWidgetState()
++    }
++
+     // MARK: - Actions - Installing
+ 
+     /// An update Sparkle downloaded on its own. Restarting runs Sparkle's
+@@ -357,6 +378,7 @@ final class BrowserSoftwareUpdateModel {
+         build: String,
+         releaseNotes: String?,
+         informationURL: URL?,
++        message: String? = nil,
+         isFixture: Bool = false,
+         installAndRelaunch: @escaping () -> Void
+     ) {
+@@ -367,7 +389,7 @@ final class BrowserSoftwareUpdateModel {
+         updateBuild = build
+         self.releaseNotes = releaseNotes
+         self.informationURL = informationURL
+-        message = Self.automaticReadyMessage
++        self.message = message ?? Self.automaticReadyMessage
+         progress = nil
+         isInformationOnly = false
+         isAutomaticUpdate = true

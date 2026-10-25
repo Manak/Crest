@@ -1,0 +1,27 @@
+diff --git a/CrestShared/Application/SidebarWidgets/BrowserSoftwareUpdatePhase.swift b/CrestShared/Application/SidebarWidgets/BrowserSoftwareUpdatePhase.swift
+index 268c9259..d59a14b5 100644
+--- a/CrestShared/Application/SidebarWidgets/BrowserSoftwareUpdatePhase.swift
++++ b/CrestShared/Application/SidebarWidgets/BrowserSoftwareUpdatePhase.swift
+@@ -110,6 +110,11 @@ struct BrowserSoftwareUpdatePhase: Hashable, Identifiable, Sendable {
+     static let extracting = BrowserSoftwareUpdatePhase(
+         name: "extracting", title: "Preparing Update", statusLabel: "Preparing",
+         showsMessage: false, isTransferring: true, isWorking: true, windowShowsActivity: true, isHideable: true)
++    /// The update is being built from source; its message names the step.
++    static let building = BrowserSoftwareUpdatePhase(
++        name: "building", title: "Building Update", statusLabel: "Building",
++        symbol: "hammer.circle.fill", isWorking: true, windowShowsActivity: true, isHideable: true,
++        cardActions: cancellableCardActions, windowButtons: cancellableWindowButtons)
+     static let readyToInstall = BrowserSoftwareUpdatePhase(
+         name: "readyToInstall", title: "Ready to Install", statusLabel: "Ready to install",
+         symbol: installSymbol, isHideable: true,
+@@ -152,8 +157,8 @@ struct BrowserSoftwareUpdatePhase: Hashable, Identifiable, Sendable {
+ 
+     /// Every phase, in the order an update moves through them.
+     static let all: [BrowserSoftwareUpdatePhase] = [
+-        idle, permission, checking, available, downloading, extracting, readyToInstall, installing, upToDate, failed,
+-        installed, unavailable,
++        idle, permission, checking, available, downloading, extracting, building, readyToInstall, installing, upToDate,
++        failed, installed, unavailable,
+     ]
+ 
+     // MARK: - Variables

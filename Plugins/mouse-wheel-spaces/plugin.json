@@ -1,0 +1,11 @@
+{
+  "id": "mouse-wheel-spaces",
+  "name": "Mouse wheel Spaces",
+  "version": "1.0.0",
+  "summary": "A mouse wheel over the sidebar switches one Space per flick or notch and follows the Mac's scroll direction setting.",
+  "type": "MouseWheelSpacesPlugin",
+  "platforms": ["macOS"],
+  "hooks": { "bootstrap": 1, "space-pager.wheel": 1 },
+  "requiresRelaunch": false,
+  "enabledByDefault": true
+}

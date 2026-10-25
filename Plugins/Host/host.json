@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "hookCatalogVersion": 1,
+  "hooks": [
+    "bootstrap",
+    "tabs.edit-actions",
+    "downloads.row-decoration",
+    "space-pager.wheel",
+    "software-updates.provider",
+    "core.contracts"
+  ]
+}

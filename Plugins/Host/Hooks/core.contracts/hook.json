@@ -1,0 +1,8 @@
+{
+  "id": "core.contracts",
+  "version": 1,
+  "summary": "Plugin C# compiles into the core: contract records under CrestCore.Contracts and partial additions to domain types.",
+  "files": [
+    "CrestCore/src/CrestCore/Domain/Tabs/BrowserTab.cs"
+  ]
+}

@@ -1,0 +1,64 @@
+diff --git a/CrestMac/Features/Chrome/Components/SpacePager/SpaceScrollGestureEventAdapter.swift b/CrestMac/Features/Chrome/Components/SpacePager/SpaceScrollGestureEventAdapter.swift
+index 9b60a012..134612de 100644
+--- a/CrestMac/Features/Chrome/Components/SpacePager/SpaceScrollGestureEventAdapter.swift
++++ b/CrestMac/Features/Chrome/Components/SpacePager/SpaceScrollGestureEventAdapter.swift
+@@ -4,7 +4,20 @@ import SwiftUI
+ /// Keeps AppKit phase, delta conventions, and event consumption at the native boundary.
+ @MainActor
+ final class SpaceScrollGestureEventAdapter {
+-    private var recognizer = SpaceScrollGestureRecognizer()
++    private var recognizer: any SpaceScrollGestureRecognizing = SpaceScrollGestureRecognizer()
++    /// The plugin whose recognizer `recognizer` is, or nil for Crest's own.
++    private var wheelID: String?
++
++    /// The plugin reading the wheel, if one is on. Turning it on or off, or
++    /// switching plugins, starts a fresh recognizer of the right kind.
++    private var wheel: CrestPluginSpaceWheel? {
++        let wheel = CrestPluginHooks.installed.first(at: CrestPluginSpaceWheel.hook)
++        if wheel?.id != wheelID {
++            wheelID = wheel?.id
++            recognizer = wheel?.makeRecognizer() ?? SpaceScrollGestureRecognizer()
++        }
++        return wheel
++    }
+ 
+     func reset() {
+         recognizer.reset()
+@@ -19,15 +32,27 @@ final class SpaceScrollGestureEventAdapter {
+         isEnabled: Bool = true,
+         onStep: (BrowserSpaceSwipeDirection) -> Void
+     ) -> NSEvent? {
++        let wheel = self.wheel
+         if !isEnabled { recognizer.cancelCurrentGesture() }
+         let decision = recognizer.consume(
+-            Self.input(for: event, layoutDirection: layoutDirection), isInside: isInside && isEnabled)
++            Self.input(
++                for: event, layoutDirection: layoutDirection,
++                horizontalDelta: wheel?.horizontalDelta(event) ?? event.scrollingDeltaX),
++            isInside: isInside && isEnabled)
+         guard isEnabled else { return event }
+         if let direction = decision.direction { onStep(direction) }
+         return decision.consumesEvent ? nil : event
+     }
+ 
+     static func input(for event: NSEvent, layoutDirection: LayoutDirection) -> SpaceScrollGestureRecognizer.Input {
++        input(for: event, layoutDirection: layoutDirection, horizontalDelta: event.scrollingDeltaX)
++    }
++
++    /// The event as the recognizer reads it, with `horizontalDelta` as the
++    /// reading of its sideways motion a plugin may have made.
++    static func input(
++        for event: NSEvent, layoutDirection: LayoutDirection, horizontalDelta: CGFloat
++    ) -> SpaceScrollGestureRecognizer.Input {
+         let phase: SpaceScrollGestureRecognizer.Phase
+         if event.phase.contains(.cancelled) {
+             phase = .cancelled
+@@ -43,7 +68,7 @@ final class SpaceScrollGestureEventAdapter {
+             phase = .none
+         }
+         return .init(
+-            deltaX: layoutDirection.semanticHorizontalTranslation(event.scrollingDeltaX),
++            deltaX: layoutDirection.semanticHorizontalTranslation(horizontalDelta),
+             deltaY: event.scrollingDeltaY,
+             timestamp: event.timestamp,
+             isPrecise: event.hasPreciseScrollingDeltas,

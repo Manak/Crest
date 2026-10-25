@@ -1,0 +1,51 @@
+diff --git a/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabEditActions.swift b/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabEditActions.swift
+index f333b37f..6cc0ed09 100644
+--- a/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabEditActions.swift
++++ b/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabEditActions.swift
+@@ -2,6 +2,8 @@ import SwiftUI
+ 
+ struct BrowserTabEditActions: View {
+     let tab: TabStateModel
++    let assignment: BrowserTabRuntimeAssignment
++    let browser: BrowserStore
+     let favicons: FaviconAssets
+     let isLoaded: Bool
+     let pullNewIcon: (() -> Void)?
+@@ -11,10 +13,19 @@ struct BrowserTabEditActions: View {
+     let clearIcon: () -> Void
+     let changeIcon: () -> Void
+ 
++    @Environment(\.crestPluginHooks) private var hooks
++    @Environment(\.crestPluginTabPrompt) private var prompt
++
+     var body: some View {
+         if tab.supportsSavedLocationEditing {
+             Menu("Edit Tab", systemImage: "pencil") {
+                 Group {
++                    ForEach(pluginActions) { action in
++                        Button(action.title, systemImage: action.systemImage) {
++                            performIfCurrent { action.perform(pluginContext) }
++                        }
++                    }
++
+                     Button(
+                         "Replace with Current URL",
+                         systemImage: "arrow.triangle.2.circlepath"
+@@ -44,6 +55,17 @@ struct BrowserTabEditActions: View {
+         }
+     }
+ 
++    /// What plugins add to the menu for this tab.
++    private var pluginActions: [CrestPluginTabAction] {
++        hooks.contributions(at: CrestPluginTabAction.hook).filter { $0.isAvailable(tab) }
++    }
++
++    private var pluginContext: CrestPluginTabActionContext {
++        CrestPluginTabActionContext(
++            tab: tab, assignment: assignment, browser: browser, restoreSavedLocation: restoreSavedLocation,
++            prompt: prompt)
++    }
++
+     private var iconActions: some View {
+         BrowserTabIconActions(
+             tab: tab,

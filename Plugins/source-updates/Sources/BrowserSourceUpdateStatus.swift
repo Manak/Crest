@@ -44,6 +44,32 @@ struct BrowserSourceUpdateStatus: Codable, Equatable, Sendable {
         let message: String
     }
 
+    /// Where the plugins would stand against upstream's tree: the ones the
+    /// next build would leave out, and the hooks that no longer apply.
+    struct Plugins: Codable, Equatable, Sendable {
+        let hostVersion: String?
+        let unavailable: [String]?
+        let failingHooks: [String]?
+        let error: String?
+
+        var leavesPluginsOut: Bool { !(unavailable ?? []).isEmpty }
+
+        /// One sentence for the offer, or nil when every plugin comes along.
+        var summary: String? {
+            if let error { return "The plugins could not be checked against upstream (\(error))." }
+            guard leavesPluginsOut, let unavailable else { return nil }
+            var text = "The update leaves out \(unavailable.joined(separator: ", "))"
+            if let failingHooks, !failingHooks.isEmpty {
+                let hooks = failingHooks.joined(separator: ", ")
+                text +=
+                    failingHooks.count == 1
+                    ? ": the \(hooks) hook no longer applies"
+                    : ": the \(hooks) hooks no longer apply"
+            }
+            return text + "."
+        }
+    }
+
     /// The one line the script prints when it cannot report.
     struct Failure: Codable, Sendable {
         let error: String
@@ -61,6 +87,8 @@ struct BrowserSourceUpdateStatus: Codable, Equatable, Sendable {
     let build: Build?
     let notes: [Note]
     let commits: [String]
+    /// Nil for a checkout without the plugin system.
+    let plugins: Plugins?
 
     /// Commits the next build adds over the installed one: upstream's not yet
     /// merged, and the checkout's since the installed app was built.

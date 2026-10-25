@@ -1,0 +1,11 @@
+{
+  "id": "source-updates",
+  "name": "Source updates",
+  "version": "1.0.0",
+  "summary": "Software Update rebuilds a personal build from its Git checkout, with upstream merged in, instead of using the Sparkle feed.",
+  "type": "SourceUpdatesPlugin",
+  "platforms": ["macOS"],
+  "hooks": { "bootstrap": 1, "software-updates.provider": 1 },
+  "requiresRelaunch": true,
+  "enabledByDefault": true
+}

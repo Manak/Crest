@@ -1,0 +1,13 @@
+{
+  "id": "bootstrap",
+  "version": 1,
+  "summary": "Compiles the host and the enabled plugins into the Mac targets, starts the host with the application, and adds the Plugins settings pane.",
+  "required": true,
+  "files": [
+    "project.yml",
+    "CrestMac/App/BrowserMacApplication.swift",
+    "CrestShared/Features/Settings/Models/BrowserSettingsDestination.swift",
+    "CrestShared/Features/Settings/Components/BrowserSettingsDestinationRouter.swift",
+    "CrestMac/Features/Settings/Support/BrowserPlatformSettingsDestinationCatalog.swift"
+  ]
+}

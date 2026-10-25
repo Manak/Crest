@@ -1,0 +1,49 @@
+diff --git a/CrestMac/App/BrowserMacApplication.swift b/CrestMac/App/BrowserMacApplication.swift
+index 925740c6..87284999 100644
+--- a/CrestMac/App/BrowserMacApplication.swift
++++ b/CrestMac/App/BrowserMacApplication.swift
+@@ -27,6 +27,8 @@ final class BrowserMacApplication {
+     let shortcuts: BrowserShortcutStore
+     let spaceSettingsPresentation: BrowserSpaceSettingsPresentationState
+     let softwareUpdates: BrowserSoftwareUpdateService
++    /// The plugins this build carries, running over both browsing modes.
++    let plugins: CrestPluginHost
+     let sidebarWidgets: BrowserSidebarWidgetRuntime
+     let pagePoolRegistry: BrowserPagePoolRegistry
+     /// Asks the core whether the app may quit, and the person about downloads
+@@ -127,6 +129,9 @@ final class BrowserMacApplication {
+             to: browser, legacy: LegacyAppPreferences.read(for: launchEnvironment))
+         BrowserAppPreferenceStore.shared.reconcileWebKitSpellChecking()
+         let privateBrowser = BrowserStore.privateBrowsing(core: core)
++        // Plugins start before the services that read their hooks.
++        let plugins = CrestPluginHost(defaults: utilityDefaults)
++        plugins.start(browser: browser, privateBrowser: privateBrowser, core: core, launchEnvironment: launchEnvironment)
+         let passkeyAccess = BrowserPasskeyAccessController(core: core)
+         let cloudSync =
+             usesIsolatedLaunch
+@@ -284,6 +289,7 @@ final class BrowserMacApplication {
+         self.shortcuts = shortcuts
+         self.passkeyAccess = passkeyAccess
+         self.softwareUpdates = softwareUpdates
++        self.plugins = plugins
+         self.sidebarWidgets = sidebarWidgets
+         self.pages = pages
+         self.privatePages = privatePages
+@@ -341,6 +347,8 @@ final class BrowserMacApplication {
+                 browser: model.browser, pages: model.pages, presentation: model.spaceSettingsPresentation)
+         )
+         .environment(softwareUpdates)
++        .environment(plugins)
++        .environment(\.crestPluginHooks, plugins.hooks)
+         .environment(passkeyAccess)
+         .environment(agentEndpoint)
+         .environment(browser.core)
+@@ -361,6 +369,8 @@ final class BrowserMacApplication {
+         )
+         .modifier(BrowserChromeAppearancePersistence())
+         .environment(softwareUpdates)
++        .environment(plugins)
++        .environment(\.crestPluginHooks, plugins.hooks)
+         .environment(passkeyAccess)
+         .environment(agentEndpoint)
+         .environment(privateBrowser.core)

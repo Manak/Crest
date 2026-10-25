@@ -1,0 +1,57 @@
+diff --git a/CrestShared/Features/Chrome/Models/BrowserUtilityPresentationState.swift b/CrestShared/Features/Chrome/Models/BrowserUtilityPresentationState.swift
+index 5918c63e..95fb2e47 100644
+--- a/CrestShared/Features/Chrome/Models/BrowserUtilityPresentationState.swift
++++ b/CrestShared/Features/Chrome/Models/BrowserUtilityPresentationState.swift
+@@ -34,7 +34,16 @@ final class BrowserUtilityPresentationState {
+     @ObservationIgnored private var consumedSearchFocusRequest = 0
+     @ObservationIgnored private let defaults: UserDefaults?
+     @ObservationIgnored private let persistenceKey: String
++    /// The list the lists button opened last, which it opens again while the
++    /// lists-button-choice plugin is off.
+     @ObservationIgnored private var lastSelectedSurface = BrowserUtilitySurface.archive
++    /// The list the sidebar's lists button opens and wears the symbol of, as
++    /// the person chose it from the button's menu. Kept across launches.
++    private(set) var triggerSurface = BrowserUtilitySurface.archive
++
++    /// Whether the lists-button-choice plugin is on, so the button opens the
++    /// list the person chose for it rather than the one opened last.
++    static var choosesTriggerSurface: Bool { CrestPluginHooks.installed.isEnabled("lists-button-choice") }
+ 
+     init(
+         defaults: UserDefaults? = nil,
+@@ -45,6 +54,7 @@ final class BrowserUtilityPresentationState {
+         if let rawValue = defaults?.string(forKey: persistenceKey),
+             let persistedSurface = BrowserUtilitySurface.named(rawValue)
+         {
++            triggerSurface = persistedSurface
+             lastSelectedSurface = persistedSurface
+         }
+     }
+@@ -77,10 +87,17 @@ final class BrowserUtilityPresentationState {
+         if self.surface != surface { consumedSearchFocusRequest = searchFocusRequest }
+         self.surface = surface
+         lastSelectedSurface = surface
+-        defaults?.set(surface.name, forKey: persistenceKey)
++        if !Self.choosesTriggerSurface { defaults?.set(surface.name, forKey: persistenceKey) }
+         isSwitcherExpanded = true
+     }
+ 
++    /// Makes `surface` the list the lists button opens, and remembers it.
++    func chooseTriggerSurface(_ surface: BrowserUtilitySurface) {
++        guard surface != triggerSurface else { return }
++        triggerSurface = surface
++        defaults?.set(surface.name, forKey: persistenceKey)
++    }
++
+     /// Records a request that stays pending until the owning search field can receive it.
+     func focusSearch() {
+         guard surface != nil else { return }
+@@ -115,7 +132,7 @@ final class BrowserUtilityPresentationState {
+         if isSwitcherExpanded {
+             dismiss()
+         } else {
+-            present(hasNewDownloads ? .downloads : lastSelectedSurface)
++            present(hasNewDownloads ? .downloads : (Self.choosesTriggerSurface ? triggerSurface : lastSelectedSurface))
+         }
+     }
+ 

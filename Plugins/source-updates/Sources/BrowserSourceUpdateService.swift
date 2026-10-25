@@ -247,6 +247,9 @@ final class BrowserSourceUpdateService {
         if status.dirty {
             message += " The checkout has uncommitted changes; commit or stash them first."
         }
+        if let plugins = status.plugins?.summary {
+            message += " \(plugins)"
+        }
         model.presentUpdate(
             title: status.updateTitle,
             version: status.targetVersion,
@@ -289,7 +292,7 @@ final class BrowserSourceUpdateService {
         }
         buildJob = job
         isBuilding = true
-        model.presentSourceBuild(
+        model.presentBuild(
             message: "Merging upstream changes…",
             cancellation: { [weak self] in
                 guard let self else { return }
@@ -303,7 +306,7 @@ final class BrowserSourceUpdateService {
                 recent.append(line)
                 if recent.count > 80 { recent.removeFirst() }
                 if line.hasPrefix("==> ") {
-                    self?.model.setSourceBuildMessage(String(line.dropFirst(4)) + "…")
+                    self?.model.setBuildMessage(String(line.dropFirst(4)) + "…")
                 }
             }
             buildTask = nil

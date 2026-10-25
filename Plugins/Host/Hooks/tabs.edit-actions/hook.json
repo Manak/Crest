@@ -1,0 +1,11 @@
+{
+  "id": "tabs.edit-actions",
+  "version": 1,
+  "summary": "Plugins add actions to a tab's Edit Tab menu and may ask a one-field question on the tab's row or tile.",
+  "files": [
+    "CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabEditActions.swift",
+    "CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabOrganizationMenuContent.swift",
+    "CrestShared/Features/Sidebar/Components/BrowserSidebarTabRow/BrowserSidebarTabRow.swift",
+    "CrestShared/Features/Tabs/Components/PinnedTabGrid/Components/PinnedTabGridContent.swift"
+  ]
+}

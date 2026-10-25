@@ -16,9 +16,6 @@ final class BrowserSoftwareUpdateService {
 
     let model: BrowserSoftwareUpdateModel
     let widgetSource: BrowserSoftwareUpdateWidgetSource
-    /// Updates from the Git checkout a personal build was made from, in place
-    /// of Sparkle; nil for the official app.
-    let source: BrowserSourceUpdateService?
     private(set) var isEnabled: Bool
     private(set) var startErrorDescription: String?
     var channel: BrowserSoftwareUpdateChannel {
@@ -36,14 +33,12 @@ final class BrowserSoftwareUpdateService {
     @ObservationIgnored private let refreshCoordinator: BrowserSoftwareUpdateRefreshCoordinator
 
     var automaticallyChecksForUpdates: Bool {
-        source?.automaticallyChecksForUpdates ?? updater.automaticallyChecksForUpdates
+        updater.automaticallyChecksForUpdates
     }
 
     var automaticallyDownloadsUpdates: Bool {
-        source?.automaticallyBuildsUpdates ?? updater.automaticallyDownloadsUpdates
+        updater.automaticallyDownloadsUpdates
     }
-
-    var usesSourceUpdates: Bool { source != nil }
 
     // MARK: - Initializers
 
@@ -76,11 +71,6 @@ final class BrowserSoftwareUpdateService {
         self.widgetSource = widgetSource
         self.isEnabled = isEnabled
         self.preferences = preferences
-        if isEnabled, let preferences, let configuration = BrowserSourceUpdateService.Configuration.current() {
-            source = BrowserSourceUpdateService(configuration: configuration, model: model, preferences: preferences)
-        } else {
-            source = nil
-        }
         self.channel = channel
         self.userDriver = userDriver
         let updater = SPUUpdater(
@@ -102,10 +92,6 @@ final class BrowserSoftwareUpdateService {
             refreshCoordinator?.updateWasFound()
         }
 
-        if let source {
-            source.start()
-            return
-        }
         guard isEnabled else { return }
         startUpdater()
     }
@@ -122,19 +108,11 @@ final class BrowserSoftwareUpdateService {
             return
         }
         model.reveal()
-        if let source {
-            source.checkForUpdates()
-            return
-        }
         refreshCoordinator.checkForUpdates()
     }
 
     func applicationDidBecomeActive() {
         guard isEnabled else { return }
-        if let source {
-            source.applicationDidBecomeActive()
-            return
-        }
         refreshCoordinator.applicationDidBecomeActive()
     }
 
@@ -217,18 +195,10 @@ final class BrowserSoftwareUpdateService {
     // MARK: - Mutators
 
     func setAutomaticallyChecksForUpdates(_ isEnabled: Bool) {
-        if let source {
-            source.setAutomaticallyChecksForUpdates(isEnabled)
-            return
-        }
         updater.automaticallyChecksForUpdates = isEnabled
     }
 
     func setAutomaticallyDownloadsUpdates(_ isEnabled: Bool) {
-        if let source {
-            source.setAutomaticallyBuildsUpdates(isEnabled)
-            return
-        }
         updater.automaticallyDownloadsUpdates = isEnabled
     }
 }

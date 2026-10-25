@@ -1,0 +1,15 @@
+diff --git a/CrestShared/Features/Settings/Components/BrowserSettingsDestinationRouter.swift b/CrestShared/Features/Settings/Components/BrowserSettingsDestinationRouter.swift
+index dc92dd22..5474d82c 100644
+--- a/CrestShared/Features/Settings/Components/BrowserSettingsDestinationRouter.swift
++++ b/CrestShared/Features/Settings/Components/BrowserSettingsDestinationRouter.swift
+@@ -118,6 +118,10 @@ struct BrowserSettingsDestinationRouter: View {
+             #if os(macOS)
+                 BrowserAgentsSettingsPane(core: browser.core)
+             #endif
++        case .plugins:
++            #if os(macOS)
++                BrowserPluginsSettingsPane()
++            #endif
+         }
+     }
+ }

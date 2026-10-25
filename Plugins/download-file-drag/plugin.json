@@ -1,0 +1,11 @@
+{
+  "id": "download-file-drag",
+  "name": "Download file drag",
+  "version": "1.0.0",
+  "summary": "Finished downloads can be dragged out of the Downloads list as files.",
+  "type": "DownloadFileDragPlugin",
+  "platforms": ["macOS"],
+  "hooks": { "bootstrap": 1, "downloads.row-decoration": 1 },
+  "requiresRelaunch": false,
+  "enabledByDefault": true
+}

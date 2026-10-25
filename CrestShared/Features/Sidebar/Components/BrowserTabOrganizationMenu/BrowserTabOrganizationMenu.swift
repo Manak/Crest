@@ -7,7 +7,6 @@ struct BrowserTabOrganizationMenu: View {
     let assignment: BrowserTabRuntimeAssignment
     var isLoaded = true
     var renameTab: (() -> Void)? = nil
-    var editSavedAddress: (() -> Void)? = nil
     var changeIcon: (() -> Void)? = nil
 
     @Environment(\.browserInteractionCapabilities) private var capabilities

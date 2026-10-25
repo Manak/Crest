@@ -83,14 +83,6 @@ public sealed class BrowserTab {
         if (State.IsAwayFromSavedAddress) State = State with { SavedUrl = Url };
     }
 
-    /// Makes `url` the address the tab belongs to, leaving the page it shows
-    /// where it is. Refused with `NoSavedAddress` for a tab that belongs
-    /// nowhere.
-    public void SetSavedAddress(string url) {
-        _ = RequiredSavedAddress();
-        State = State with { SavedUrl = url };
-    }
-
     /// Returns the tab to the address it belongs to, which its page then
     /// loads. Refused with `NoSavedAddress` for a tab that belongs nowhere.
     public void ReturnToSavedAddress() => State = State with { Url = RequiredSavedAddress() };

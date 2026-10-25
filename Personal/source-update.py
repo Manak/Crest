@@ -133,6 +133,37 @@ def known_commit(revision):
     return result.stdout.strip() or None
 
 
+PLUGINS_SCRIPT = REPOSITORY / "Plugins/crest-plugins.py"
+
+
+def plugins_outlook(revision):
+    """Which hooks and plugins would stand against a revision's tree, as
+    Plugins/crest-plugins.py reports it; None without the plugin system."""
+    if not PLUGINS_SCRIPT.is_file():
+        return None
+    result = subprocess.run([sys.executable, "-I", str(PLUGINS_SCRIPT), "status", "--json", "--revision", revision],
+                            cwd=REPOSITORY, capture_output=True, text=True)
+    if result.returncode != 0:
+        return {"error": result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "status failed"}
+    try:
+        report = json.loads(result.stdout)
+    except ValueError:
+        return {"error": "unreadable plugin status"}
+    return {
+        "hostVersion": report["host"]["version"],
+        "unavailable": [p["id"] for p in report["plugins"] if p["included"] and not p["available"]],
+        "failingHooks": [h["id"] for h in report["hooks"] if not h["available"]],
+    }
+
+
+def revert_plugins():
+    """Takes applied hooks out of the working tree, so the sync sees a clean
+    checkout; the build applies them again."""
+    if PLUGINS_SCRIPT.is_file():
+        subprocess.run([sys.executable, "-I", str(PLUGINS_SCRIPT), "revert"], cwd=REPOSITORY,
+                       capture_output=True, text=True)
+
+
 def status(fetch, installed=None):
     report = {"checkout": str(REPOSITORY), "fetchError": None}
     report["branch"] = git("rev-parse", "--abbrev-ref", "HEAD")
@@ -176,6 +207,9 @@ def status(fetch, installed=None):
     report["notes"] = notes
     subjects = git("log", "--format=%s", "HEAD", "upstream/main", "--not", base)
     report["commits"] = subjects.splitlines()[:40]
+    # The hooks the next build would apply to upstream's tree, and the
+    # plugins that would be left out when one no longer applies.
+    report["plugins"] = plugins_outlook("upstream/main")
     return report
 
 
@@ -203,6 +237,7 @@ def run_streaming(command):
 
 
 def prepare(stage, webkit):
+    revert_plugins()
     code = run_streaming(["/bin/zsh", str(REPOSITORY / "Personal/sync-upstream.sh")])
     if code != 0:
         return code

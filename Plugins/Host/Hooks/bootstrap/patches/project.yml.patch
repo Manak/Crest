@@ -1,0 +1,73 @@
+diff --git a/project.yml b/project.yml
+index 07233218..b550141f 100644
+--- a/project.yml
++++ b/project.yml
+@@ -126,6 +126,13 @@ targetTemplates:
+         excludes:
+           - CrestChromiumHost.h
+       - path: CrestAgents
++      - path: Plugins/.build/Shared
++        optional: true
++      - path: Plugins/.build/Mac
++        optional: true
++      - path: Plugins/.build/CrestPlugins.json
++        buildPhase: resources
++        optional: true
+     dependencies:
+       - target: CrestDockTilePlugin
+         link: false
+@@ -199,6 +206,13 @@ targets:
+           - Resources/CrestIcon/Validation
+       - path: CrestMac
+       - path: CrestAgents
++      - path: Plugins/.build/Shared
++        optional: true
++      - path: Plugins/.build/Mac
++        optional: true
++      - path: Plugins/.build/CrestPlugins.json
++        buildPhase: resources
++        optional: true
+     dependencies:
+       - target: CrestDockTilePlugin
+         embed: true
+@@ -316,6 +330,13 @@ targets:
+           - Resources/CrestIcon/Validation
+       - path: CrestMac
+       - path: CrestAgents
++      - path: Plugins/.build/Shared
++        optional: true
++      - path: Plugins/.build/Mac
++        optional: true
++      - path: Plugins/.build/CrestPlugins.json
++        buildPhase: resources
++        optional: true
+     dependencies:
+       - target: CrestDockTilePlugin
+         embed: true
+@@ -397,6 +418,8 @@ targets:
+           # Fixtures are read relative to #filePath. Bundling their loose files
+           # flattens directories and collides on manifest.json/background.js.
+           - Fixtures
++      - path: Plugins/.build/Tests
++        optional: true
+     dependencies:
+       - target: Crest
+     settings:
+@@ -422,6 +445,8 @@ targets:
+           - Resources/CrestIcon/Sources
+           - Resources/CrestIcon/Validation
+       - path: CrestMobile
++      - path: Plugins/.build/Shared
++        optional: true
+     dependencies:
+       - sdk: AuthenticationServices.framework
+       - sdk: CloudKit.framework
+@@ -479,6 +504,8 @@ targets:
+           - Resources/CrestIcon/Sources
+           - Resources/CrestIcon/Validation
+       - path: CrestMobile
++      - path: Plugins/.build/Shared
++        optional: true
+     dependencies:
+       - target: CrestShareExtension
+       - sdk: AuthenticationServices.framework

@@ -1,0 +1,37 @@
+diff --git a/CrestShared/Features/Tabs/Components/PinnedTabGrid/Components/PinnedTabGridContent.swift b/CrestShared/Features/Tabs/Components/PinnedTabGrid/Components/PinnedTabGridContent.swift
+index 74ccd14c..3a10ded8 100644
+--- a/CrestShared/Features/Tabs/Components/PinnedTabGrid/Components/PinnedTabGridContent.swift
++++ b/CrestShared/Features/Tabs/Components/PinnedTabGrid/Components/PinnedTabGridContent.swift
+@@ -10,6 +10,7 @@ struct PinnedTabGridContent: View {
+     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+     @State private var renamingAssignment: BrowserTabRuntimeAssignment?
+     @State private var iconRequest: BrowserTabRuntimeAssignment?
++    @State private var pluginPrompt: CrestPluginTextPromptRequest?
+     @State private var draftTitle = ""
+     private var tabScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
+     private var pinColumns: Int { BrowserDeviceAppearanceStore.shared.pinColumns }
+@@ -75,6 +76,12 @@ struct PinnedTabGridContent: View {
+ 
+             Button("Cancel", role: .cancel) { renamingAssignment = nil }
+         }
++        .environment(\.crestPluginTabPrompt, CrestPluginTextPromptPresenter { pluginPrompt = $0 })
++        .crestPluginTextPrompt($pluginPrompt)
++        .onChange(of: pluginPromptIsLive) { _, isLive in
++            guard !isLive else { return }
++            pluginPrompt = nil
++        }
+         .onChange(of: renamingAssignmentIsLive) { _, isLive in
+             guard !isLive else { return }
+             renamingAssignment = nil
+@@ -150,6 +157,11 @@ struct PinnedTabGridContent: View {
+         return isCurrentAndUnlocked(renamingAssignment)
+     }
+ 
++    private var pluginPromptIsLive: Bool {
++        guard let pluginPrompt else { return false }
++        return isCurrentAndUnlocked(pluginPrompt.assignment)
++    }
++
+     private func isCurrentAndUnlocked(
+         _ assignment: BrowserTabRuntimeAssignment
+     ) -> Bool {

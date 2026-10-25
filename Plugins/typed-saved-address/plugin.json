@@ -1,0 +1,11 @@
+{
+  "id": "typed-saved-address",
+  "name": "Typed saved address",
+  "version": "1.0.0",
+  "summary": "Edit Tab offers Edit URL… for saved and pinned tabs, so the address a tab belongs to can be typed.",
+  "type": "TypedSavedAddressPlugin",
+  "platforms": ["macOS"],
+  "hooks": { "bootstrap": 1, "tabs.edit-actions": 1, "core.contracts": 1 },
+  "requiresRelaunch": false,
+  "enabledByDefault": true
+}

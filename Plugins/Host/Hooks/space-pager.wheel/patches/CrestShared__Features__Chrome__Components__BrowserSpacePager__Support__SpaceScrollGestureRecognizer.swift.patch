@@ -1,0 +1,13 @@
+diff --git a/CrestShared/Features/Chrome/Components/BrowserSpacePager/Support/SpaceScrollGestureRecognizer.swift b/CrestShared/Features/Chrome/Components/BrowserSpacePager/Support/SpaceScrollGestureRecognizer.swift
+index 7972fcb4..9ff970b8 100644
+--- a/CrestShared/Features/Chrome/Components/BrowserSpacePager/Support/SpaceScrollGestureRecognizer.swift
++++ b/CrestShared/Features/Chrome/Components/BrowserSpacePager/Support/SpaceScrollGestureRecognizer.swift
+@@ -3,7 +3,7 @@ import Foundation
+ /// Recognizes one horizontal Space intent without coupling selection to scroll position.
+ /// Phased gestures stay latched until their boundary; phase-less devices use a quiet gap
+ /// measured from the last event, never a timer measured from the last accepted step.
+-struct SpaceScrollGestureRecognizer {
++struct SpaceScrollGestureRecognizer: SpaceScrollGestureRecognizing {
+     enum Phase: Equatable, Sendable {
+         case none, mayBegin, began, changed, ended, cancelled
+     }

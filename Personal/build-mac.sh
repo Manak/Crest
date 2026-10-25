@@ -15,9 +15,15 @@
 #   - Sparkle update checks removed, so the official release can never
 #     overwrite this build; updates come from Personal/sync-upstream.sh + this
 #
-# Usage: Personal/build-mac.sh [--webkit] [--no-install]
+# Usage: Personal/build-mac.sh [--webkit] [--no-install] [--no-plugins]
 #        Personal/build-mac.sh [--webkit] --stage /path/Crest.app
 #        Personal/build-mac.sh --install-staged /path/Crest.app
+#
+# The plugins under Plugins/ are patched into the checkout for the build
+# (Plugins/crest-plugins.py apply) and taken out again afterwards, so the
+# committed tree stays upstream plus Plugins/ and Personal/. A plugin whose
+# hooks no longer apply to this checkout is left out and the build goes on;
+# --no-plugins builds plain upstream Crest. See Plugins/README.md.
 #
 # --stage builds and personalizes the app into the given path without
 # installing it; --install-staged quits Crest, swaps that app into
@@ -37,12 +43,14 @@ application_path="/Applications/Crest.app"
 upstream_repository="pauljoda/Crest"
 engine=chromium
 install=true
+plugins=true
 stage_path=""
 install_staged_path=""
 while (( $# )); do
   case "$1" in
     --webkit) engine=webkit ;;
     --no-install) install=false ;;
+    --no-plugins) plugins=false ;;
     --stage) stage_path="${2:A}"; shift ;;
     --install-staged) install_staged_path="${2:A}"; shift ;;
     *) print -u2 "Unknown option: $1"; exit 2 ;;
@@ -108,12 +116,26 @@ source_commit="$(git rev-parse HEAD)"
 staging_root="$(mktemp -d "${TMPDIR%/}/crest-personal.XXXXXX")"
 cleanup() {
   find "$staging_root" -depth -delete 2>/dev/null || true
-  # Upstream commits Crest.xcodeproj; the regenerated one (which includes the
-  # Swift files under Personal/) is a build input only, so the tree stays clean.
+  # The plugin hooks are a build input: take them out of the working tree.
+  if [[ "$plugins" == true ]]; then
+    python3 -I Plugins/crest-plugins.py revert >/dev/null 2>&1 || true
+  fi
+  # Upstream commits Crest.xcodeproj; the regenerated one is a build input
+  # only, so the tree stays clean.
   git checkout -q -- Crest.xcodeproj 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM HUP
 staged_app="$staging_root/Crest.app"
+
+plugins_host_version=""
+if [[ "$plugins" == true ]]; then
+  print "==> Applying plugins"
+  if python3 -I Plugins/crest-plugins.py apply; then
+    plugins_host_version="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' Plugins/Host/host.json)"
+  else
+    print -u2 "Plugins were not applied (see the reason above); building plain upstream Crest."
+  fi
+fi
 
 print "==> Generating Xcode project"
 xcodegen generate >/dev/null
@@ -213,6 +235,9 @@ plist="$staged_app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CrestSourceCheckout string $repository_root" "$plist"
 /usr/libexec/PlistBuddy -c "Add :CrestSourceCommit string $source_commit" "$plist"
 /usr/libexec/PlistBuddy -c "Add :CrestSourceEngine string $engine" "$plist"
+if [[ -n "$plugins_host_version" ]]; then
+  /usr/libexec/PlistBuddy -c "Add :CrestPluginsHostVersion string $plugins_host_version" "$plist"
+fi
 applied_entitlements="$staging_root/entitlements.plist"
 codesign -d --entitlements :- "$staged_app" 2>/dev/null > "$applied_entitlements"
 codesign --force --options runtime --sign "$signing_identity" \

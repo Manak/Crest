@@ -1,0 +1,9 @@
+{
+  "id": "space-pager.wheel",
+  "version": 1,
+  "summary": "One plugin reads the mouse wheel over the Space strip: the delta it takes from each event and the recognizer that turns deltas into steps.",
+  "files": [
+    "CrestShared/Features/Chrome/Components/BrowserSpacePager/Support/SpaceScrollGestureRecognizer.swift",
+    "CrestMac/Features/Chrome/Components/SpacePager/SpaceScrollGestureEventAdapter.swift"
+  ]
+}

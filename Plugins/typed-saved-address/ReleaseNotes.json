@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 2,
+  "entries": {
+    "saved-tab-edit-url": {
+      "category": "new",
+      "message": "Edit Tab offers Edit URL… for saved and pinned tabs, so you can type the address a tab belongs to instead of replacing it with the page it is showing."
+    }
+  }
+}

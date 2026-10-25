@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "entries": {
+    "space-switch-mouse-wheel-flicks": {
+      "category": "fixed",
+      "message": "Scrolling sideways over the sidebar with a mouse wheel switches one Space per flick or notch, including quick flicks in a row."
+    },
+    "space-switch-wheel-natural-scrolling": {
+      "category": "fixed",
+      "message": "A mouse wheel switches Spaces in the direction the Mac's Natural Scrolling setting gives it, the same way as a trackpad swipe."
+    }
+  }
+}

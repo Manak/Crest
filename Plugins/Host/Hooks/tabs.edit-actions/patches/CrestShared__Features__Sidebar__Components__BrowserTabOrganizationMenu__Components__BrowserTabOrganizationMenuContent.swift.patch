@@ -1,0 +1,13 @@
+diff --git a/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabOrganizationMenuContent.swift b/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabOrganizationMenuContent.swift
+index 0e02929b..a0e179ac 100644
+--- a/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabOrganizationMenuContent.swift
++++ b/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabOrganizationMenuContent.swift
+@@ -57,6 +57,8 @@ struct BrowserTabOrganizationMenuContent: View {
+         if !tab.isStartPage {
+             BrowserTabEditActions(
+                 tab: tab,
++                assignment: assignment,
++                browser: browser,
+                 favicons: context.favicons,
+                 isLoaded: isLoaded,
+                 pullNewIcon: { context.pullNewIcon(tab.id) },

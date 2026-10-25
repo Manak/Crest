@@ -110,7 +110,6 @@ private struct BrowserUtilityDownloadRow: View {
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
-                .modifier(BrowserPlatformDownloadFileDragSource(download: download))
                 .accessibilityLabel(Text(primaryDestination.title))
                 .accessibilityValue(Text(verbatim: accessibilitySummary))
             } else {

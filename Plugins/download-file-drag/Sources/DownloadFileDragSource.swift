@@ -8,7 +8,7 @@ import SwiftUI
 ///
 /// A download without a finished file on disk is not a drag source at all;
 /// the row stays a plain button.
-struct BrowserPlatformDownloadFileDragSource: ViewModifier {
+struct DownloadFileDragSource: ViewModifier {
     let download: DownloadState
 
     @ViewBuilder
@@ -18,7 +18,7 @@ struct BrowserPlatformDownloadFileDragSource: ViewModifier {
                 .onDrag {
                     NSItemProvider(contentsOf: fileURL) ?? NSItemProvider()
                 } preview: {
-                    BrowserDownloadFileDragPreview(fileURL: fileURL)
+                    DownloadFileDragPreview(fileURL: fileURL)
                 }
         } else {
             content
@@ -37,7 +37,7 @@ struct BrowserPlatformDownloadFileDragSource: ViewModifier {
 }
 
 /// What follows the pointer: the file as Finder shows it.
-private struct BrowserDownloadFileDragPreview: View {
+private struct DownloadFileDragPreview: View {
     let fileURL: URL
 
     var body: some View {

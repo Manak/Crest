@@ -1,0 +1,76 @@
+diff --git a/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift b/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift
+index 63e0d9d8..2549be41 100644
+--- a/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift
++++ b/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift
+@@ -1,23 +1,55 @@
+ import SwiftUI
+ 
+ /// The switcher's page-side accessory: one control for the archive, history,
+-/// and downloads lists, badged when downloads have finished unseen.
++/// and downloads lists, badged when downloads have finished unseen. While the
++/// lists-button-choice plugin is on it wears the symbol of the list it opens,
++/// which its menu changes.
+ struct BrowserSpaceSwitcherCommonListsButton: View {
++    static let choicePluginID = "lists-button-choice"
++
+     let isExpanded: Bool
++    let surface: BrowserUtilitySurface
+     let downloads: [DownloadState]
+     let newDownloads: [DownloadState]
+     let badgeColor: Color
+     let action: () -> Void
++    let choose: (BrowserUtilitySurface) -> Void
+     let recordFrame: (CGRect) -> Void
+ 
+     @Environment(\.accessibilityReduceMotion) private var reduceMotion
++    @Environment(\.crestPluginHooks) private var hooks
+     #if os(macOS)
+         @Environment(BrowserMacDownloadFeedbackState.self) private var downloadFeedback:
+             BrowserMacDownloadFeedbackState?
+     #endif
+ 
+     var body: some View {
+-        Button("Common Lists", systemImage: "archivebox", action: action)
++        if hooks.isEnabled(Self.choicePluginID) {
++            control(symbol: surface.systemImage).contextMenu { listPicker }
++        } else {
++            control(symbol: "archivebox")
++        }
++    }
++
++    /// The list the button opens, chosen from its menu.
++    private var listPicker: some View {
++        Picker(selection: Binding(get: { surface }, set: choose)) {
++            ForEach(BrowserUtilitySurface.all) { surface in
++                Label {
++                    Text(surface.title)
++                } icon: {
++                    Image(systemName: surface.systemImage)
++                }
++                .tag(surface)
++            }
++        } label: {
++            EmptyView()
++        }
++        .pickerStyle(.inline)
++    }
++
++    private func control(symbol: String) -> some View {
++        Button("Common Lists", systemImage: symbol, action: action)
+             .labelStyle(.iconOnly)
+             .buttonStyle(.borderless)
+             .frame(
+@@ -77,10 +109,11 @@ struct BrowserSpaceSwitcherCommonListsButton: View {
+ #if DEBUG
+     #Preview("Download badge and expansion") {
+         @Previewable @State var expanded = false
++        @Previewable @State var surface = BrowserUtilitySurface.archive
+         BrowserSpaceSwitcherCommonListsButton(
+-            isExpanded: expanded, downloads: [BrowserUtilityListPreviewFixture.activeDownload],
++            isExpanded: expanded, surface: surface, downloads: [BrowserUtilityListPreviewFixture.activeDownload],
+             newDownloads: [BrowserUtilityListPreviewFixture.finishedDownload], badgeColor: .indigo,
+-            action: { expanded.toggle() }, recordFrame: { _ in }
++            action: { expanded.toggle() }, choose: { surface = $0 }, recordFrame: { _ in }
+         ).padding()
+     }
+ #endif
