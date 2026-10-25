@@ -1,5 +1,5 @@
 diff --git a/CrestShared/Features/Tabs/Components/PinnedTabGrid/Components/PinnedTabGridContent.swift b/CrestShared/Features/Tabs/Components/PinnedTabGrid/Components/PinnedTabGridContent.swift
-index 74ccd14c..3a10ded8 100644
+index 2569e7d8..7dd4d4a4 100644
 --- a/CrestShared/Features/Tabs/Components/PinnedTabGrid/Components/PinnedTabGridContent.swift
 +++ b/CrestShared/Features/Tabs/Components/PinnedTabGrid/Components/PinnedTabGridContent.swift
 @@ -10,6 +10,7 @@ struct PinnedTabGridContent: View {
@@ -10,7 +10,7 @@ index 74ccd14c..3a10ded8 100644
      @State private var draftTitle = ""
      private var tabScale: Double { BrowserDeviceAppearanceStore.shared.tabScale }
      private var pinColumns: Int { BrowserDeviceAppearanceStore.shared.pinColumns }
-@@ -75,6 +76,12 @@ struct PinnedTabGridContent: View {
+@@ -74,6 +75,12 @@ struct PinnedTabGridContent: View {
  
              Button("Cancel", role: .cancel) { renamingAssignment = nil }
          }
@@ -23,7 +23,7 @@ index 74ccd14c..3a10ded8 100644
          .onChange(of: renamingAssignmentIsLive) { _, isLive in
              guard !isLive else { return }
              renamingAssignment = nil
-@@ -150,6 +157,11 @@ struct PinnedTabGridContent: View {
+@@ -149,6 +156,11 @@ struct PinnedTabGridContent: View {
          return isCurrentAndUnlocked(renamingAssignment)
      }
  

@@ -6,6 +6,6 @@
     "CrestMac/Features/SoftwareUpdates/Services/BrowserSoftwareUpdateService.swift",
     "CrestMac/Features/SoftwareUpdates/Models/BrowserSoftwareUpdateModel.swift",
     "CrestShared/Application/SidebarWidgets/BrowserSoftwareUpdatePhase.swift",
-    "CrestMac/Features/Settings/Components/BrowserPlatformSoftwareUpdateSettingsSection.swift"
+    "CrestMac/Features/Settings/Components/BrowserSoftwareUpdateSettingsSection.swift"
   ]
 }

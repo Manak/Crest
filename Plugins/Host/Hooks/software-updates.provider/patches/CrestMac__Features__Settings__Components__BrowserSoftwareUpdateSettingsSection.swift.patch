@@ -1,0 +1,20 @@
+diff --git a/CrestMac/Features/Settings/Components/BrowserSoftwareUpdateSettingsSection.swift b/CrestMac/Features/Settings/Components/BrowserSoftwareUpdateSettingsSection.swift
+index d587ba81..39651c07 100644
+--- a/CrestMac/Features/Settings/Components/BrowserSoftwareUpdateSettingsSection.swift
++++ b/CrestMac/Features/Settings/Components/BrowserSoftwareUpdateSettingsSection.swift
+@@ -6,6 +6,15 @@ struct BrowserSoftwareUpdateSettingsSection: View {
+     @Environment(BrowserSoftwareUpdateService.self) private var softwareUpdates
+ 
+     var body: some View {
++        if let provider = softwareUpdates.provider {
++            provider.settingsSection
++        } else {
++            feedSection
++        }
++    }
++
++    /// Updates for the official app, from its Sparkle feed.
++    private var feedSection: some View {
+         Section {
+             Toggle(
+                 "Check for updates automatically",

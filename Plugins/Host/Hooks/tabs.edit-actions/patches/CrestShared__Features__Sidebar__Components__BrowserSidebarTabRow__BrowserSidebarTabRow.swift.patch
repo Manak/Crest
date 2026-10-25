@@ -1,16 +1,16 @@
 diff --git a/CrestShared/Features/Sidebar/Components/BrowserSidebarTabRow/BrowserSidebarTabRow.swift b/CrestShared/Features/Sidebar/Components/BrowserSidebarTabRow/BrowserSidebarTabRow.swift
-index 01d39063..ef8464f5 100644
+index 5594932e..2b3b505b 100644
 --- a/CrestShared/Features/Sidebar/Components/BrowserSidebarTabRow/BrowserSidebarTabRow.swift
 +++ b/CrestShared/Features/Sidebar/Components/BrowserSidebarTabRow/BrowserSidebarTabRow.swift
-@@ -26,6 +26,7 @@ struct BrowserSidebarTabRow: View {
-     @State private var dropTargetHeight = CrestLayout.sidebarRowHeight
+@@ -20,6 +20,7 @@ struct BrowserSidebarTabRow: View {
+     @State private var isHovering = false
      @State private var renameRequest: BrowserTabRuntimeAssignment?
      @State private var iconRequest: BrowserTabRuntimeAssignment?
 +    @State private var pluginPrompt: CrestPluginTextPromptRequest?
      @State private var draftTitle = ""
      @FocusState private var isTitleFocused: Bool
  
-@@ -48,18 +49,22 @@ struct BrowserSidebarTabRow: View {
+@@ -42,18 +43,22 @@ struct BrowserSidebarTabRow: View {
                      tabID: tab.id, context: context, canAct: { configuration.isCurrentAndUnlocked }))
          )
          .environment(\.browserInteractionCapabilities, context.capabilities)

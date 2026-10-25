@@ -1,5 +1,5 @@
 diff --git a/project.yml b/project.yml
-index 07233218..b550141f 100644
+index c3cba4d6..55f4b93e 100644
 --- a/project.yml
 +++ b/project.yml
 @@ -126,6 +126,13 @@ targetTemplates:
@@ -30,7 +30,7 @@ index 07233218..b550141f 100644
      dependencies:
        - target: CrestDockTilePlugin
          embed: true
-@@ -316,6 +330,13 @@ targets:
+@@ -309,6 +323,13 @@ targets:
            - Resources/CrestIcon/Validation
        - path: CrestMac
        - path: CrestAgents
@@ -44,7 +44,7 @@ index 07233218..b550141f 100644
      dependencies:
        - target: CrestDockTilePlugin
          embed: true
-@@ -397,6 +418,8 @@ targets:
+@@ -390,6 +411,8 @@ targets:
            # Fixtures are read relative to #filePath. Bundling their loose files
            # flattens directories and collides on manifest.json/background.js.
            - Fixtures
@@ -53,7 +53,7 @@ index 07233218..b550141f 100644
      dependencies:
        - target: Crest
      settings:
-@@ -422,6 +445,8 @@ targets:
+@@ -415,6 +438,8 @@ targets:
            - Resources/CrestIcon/Sources
            - Resources/CrestIcon/Validation
        - path: CrestMobile
@@ -62,7 +62,7 @@ index 07233218..b550141f 100644
      dependencies:
        - sdk: AuthenticationServices.framework
        - sdk: CloudKit.framework
-@@ -479,6 +504,8 @@ targets:
+@@ -472,6 +497,8 @@ targets:
            - Resources/CrestIcon/Sources
            - Resources/CrestIcon/Validation
        - path: CrestMobile

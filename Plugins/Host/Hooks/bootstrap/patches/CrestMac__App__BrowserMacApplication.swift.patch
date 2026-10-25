@@ -1,5 +1,5 @@
 diff --git a/CrestMac/App/BrowserMacApplication.swift b/CrestMac/App/BrowserMacApplication.swift
-index 925740c6..87284999 100644
+index 89024d45..4eecfd4b 100644
 --- a/CrestMac/App/BrowserMacApplication.swift
 +++ b/CrestMac/App/BrowserMacApplication.swift
 @@ -27,6 +27,8 @@ final class BrowserMacApplication {
@@ -21,7 +21,7 @@ index 925740c6..87284999 100644
          let passkeyAccess = BrowserPasskeyAccessController(core: core)
          let cloudSync =
              usesIsolatedLaunch
-@@ -284,6 +289,7 @@ final class BrowserMacApplication {
+@@ -282,6 +287,7 @@ final class BrowserMacApplication {
          self.shortcuts = shortcuts
          self.passkeyAccess = passkeyAccess
          self.softwareUpdates = softwareUpdates

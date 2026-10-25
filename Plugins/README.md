@@ -215,7 +215,7 @@ two automatic-update preferences to it, and About shows the provider's
 `settingsSection` in place of the feed's rows. The model gains a `building`
 phase with `presentBuild(message:cancellation:)` and `setBuildMessage`.
 Patches `BrowserSoftwareUpdateService`, `BrowserSoftwareUpdateModel`,
-`BrowserSoftwareUpdatePhase`, `BrowserPlatformSoftwareUpdateSettingsSection`.
+`BrowserSoftwareUpdatePhase`, `BrowserSoftwareUpdateSettingsSection`.
 Read once at launch: a plugin using it sets `requiresRelaunch`.
 
 ### `core.contracts` (v1)

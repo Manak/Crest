@@ -315,7 +315,14 @@ def apply_patch_set(unit: PatchSet) -> Outcome:
         if git("apply", "--check", str(patch), check=False).returncode == 0:
             git("apply", str(patch))
         else:
+            # `--3way` writes its result, merged or conflicted, to the index as
+            # well as the working tree. The index entry goes back as it was, so
+            # the working tree alone carries the hook and `restore` still finds
+            # upstream's content there.
+            entry = git("ls-files", "--stage", "--", file).stdout
             result = git("apply", "--3way", str(patch), check=False)
+            if entry:
+                git("update-index", "--index-info", input=entry)
             if result.returncode != 0:
                 restore([*applied, file])
                 return Outcome(False, f"{file}: {summarize_apply_failure(result.stderr)}")
@@ -334,8 +341,14 @@ def summarize_apply_failure(stderr: str) -> str:
 
 def restore(files: list[str]) -> None:
     present = [file for file in files if tracked(file)]
-    if present:
-        git("checkout", "--", *present)
+    if not present:
+        return
+    # A three-way merge that conflicted leaves the path unmerged, which
+    # `checkout` refuses; its index entry goes back to HEAD first.
+    unmerged = sorted({line.split("\t", 1)[1] for line in git("ls-files", "--unmerged", "--", *present).stdout.splitlines()})
+    if unmerged:
+        git("reset", "-q", "--", *unmerged)
+    git("checkout", "--", *present)
 
 
 # MARK: - Build folder
@@ -352,7 +365,11 @@ def link(target: Path, destination: Path) -> None:
 
 
 def ensure_local_excludes() -> None:
-    exclude = ROOT / ".git/info/exclude"
+    # `--git-path` finds the common directory from a linked worktree too,
+    # where `.git` is a file.
+    exclude = Path(git("rev-parse", "--git-path", "info/exclude").stdout.strip())
+    if not exclude.is_absolute():
+        exclude = ROOT / exclude
     existing = exclude.read_text() if exclude.is_file() else ""
     missing = [line for line in LOCAL_EXCLUDES if line not in existing.splitlines()]
     if missing:
