@@ -123,6 +123,27 @@ This personal bundle encrypts with the plain "Chromium Safe Storage" keychain
 item, not "Crest Safe Storage": upstream's engine patch only renames it for
 `com.pauldavis.crest` bundles.
 
+History does not come over either. `Personal/bin/arc-history-to-crest.py`
+(same `--dry-run` and `--map` flags) quits Crest, backs up
+`ControlPlane/session.sqlite` under
+`~/Library/Caches/Crest-local-release/history-backups/`, and writes each Arc
+Space's history into the paired Crest Space's `history.<Space>` checkpoint
+part the way Crest's core records it: each address once, without its
+fragment, with its first and latest visit, visit count and latest title,
+merged with what Crest already has. The core keeps the newest 5000 addresses
+per Space, so a long Arc history is cut there (the dry run says which dates
+survive). Crest's history, palette and suggestions read the core's store;
+Chromium's own `History` database in each profile folder is a second copy the
+engine keeps for itself, and it is what colors `:visited` links.
+`Personal/bin/arc-visited-links-to-crest.py` (same flags, plus `--days`,
+default 90, Chromium's own retention) merges the recent part of Arc's
+`History` into it: addresses, visits and `visited_links` rows, renumbered and
+folded into what Crest already recorded, with the stores backed up under the
+same `history-backups/` folder. Chromium holds these stores exclusively
+locked while it runs, so both tools quit Crest first, and the dry runs copy
+the files rather than using SQLite's online backup, which would wait on that
+lock forever.
+
 The import also leaves every tab with a globe until its page loads, because
 it brings titles but not icons. `Personal/bin/arc-icons-to-crest.py` (same
 `--dry-run` and `--map` flags) matches each imported tab to its Arc item by
