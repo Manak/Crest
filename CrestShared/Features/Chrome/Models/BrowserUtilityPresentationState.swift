@@ -88,24 +88,30 @@ final class BrowserUtilityPresentationState {
 
     /// The list the lists button opens in the Space `spaceID` names.
     func triggerSurface(for spaceID: UUID?) -> BrowserUtilitySurface {
-        spaceID.flatMap { triggerSurfaces[$0] } ?? unchosenSurface
+        spaceID.flatMap { currentTriggerSurfaces[$0] } ?? unchosenSurface
     }
 
     /// Makes `surface` the list the lists button opens in the Space `spaceID`
     /// names, and remembers it.
     ///
     /// Another window's presentation state over the same defaults may have
-    /// saved since this one read them, so each save starts from what is
-    /// stored now rather than from this state's own copy.
+    /// saved since this one read them, so each save starts from the choices in
+    /// effect now rather than from this state's own copy.
     func chooseTriggerSurface(_ surface: BrowserUtilitySurface, for spaceID: UUID) {
-        guard triggerSurfaces[spaceID] != surface else { return }
-        var merged = triggerSurfaces
-        merged.merge(storedTriggerSurfaces) { _, stored in stored }
+        var merged = currentTriggerSurfaces
+        guard merged[spaceID] != surface else { return }
         merged[spaceID] = surface
         triggerSurfaces = merged
         var stored: [String: String] = [:]
         for (spaceID, surface) in merged { stored[spaceID.uuidString] = surface.name }
         defaults?.set(stored, forKey: persistenceKey)
+    }
+
+    /// The choices in effect now: this state's own copy, which views observe,
+    /// with what the defaults hold winning, so a choice another window saved
+    /// for the same Space counts.
+    private var currentTriggerSurfaces: [UUID: BrowserUtilitySurface] {
+        triggerSurfaces.merging(storedTriggerSurfaces) { _, stored in stored }
     }
 
     /// The choices the defaults hold now, by Space ID.
