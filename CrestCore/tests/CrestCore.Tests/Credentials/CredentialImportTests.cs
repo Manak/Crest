@@ -93,6 +93,31 @@ public sealed class CredentialImportTests {
     }
 
     [Fact]
+    public void AnIPAddressIsSpelledAsAPageReportsItSoThePasswordFillsAndMerges() {
+        var saved = Saved("ada", "secret", origin: new("https", "127.0.0.1", 443));
+        var plan = Preview("""
+            url,username,password
+            https://127.1/,ada,secret
+            https://0x7f.0.0.1./,bob,secret
+            https://[2001:db8:0:0:0:0:0:1]/,ada,secret
+            https://[::ffff:1.2.3.4]/,ada,secret
+            https://999.1.1.1/,ada,secret
+            https://1.2.3.4.5/,ada,secret
+            https://08.1.1.1/,ada,secret
+            https://[::ffff:1.2.3.04]/,ada,secret
+            """, saved);
+        Assert.Equal([("127.0.0.1", "ada"), ("127.0.0.1", "bob"), ("2001:db8::1", "ada"), ("::ffff:102:304", "ada")],
+            plan.Groups.Select(group => (group.Origin.Host, group.Username)));
+        Assert.Equal(saved.Id, plan.Groups[0].ExistingId);
+        // A host ending in a number must be an IPv4 address, and an IPv6 address
+        // must spell any IPv4 address it ends in without leading zeros, or no
+        // page can have it.
+        Assert.Equal(Enumerable.Range(6, 4).Select(row => new CredentialRowRejection(row, CredentialRowFlaw.InvalidOrigin)), plan.Rejections);
+        Assert.False(new CredentialOrigin("https", "2001:db8:0:0:0:0:0:1", 443).IsValid);
+        Assert.False(new CredentialOrigin("https", "127.1", 443).IsValid);
+    }
+
+    [Fact]
     public void AnAccountsRowsGroupAgainstItsMostRecentSavedPassword() {
         var older = Saved("ADA", "old-secret", updatedAt: 3_000);
         var newer = Saved("ada", "current-secret", updatedAt: 1_000, lastUsedAt: 5_000);
