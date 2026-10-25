@@ -13,6 +13,9 @@ import SwiftUI
 @MainActor
 final class BrowserCredentialSpaceStore {
     private(set) var descriptors: [CredentialDescriptor] = []
+    /// How many of the Space's saved passwords no longer read back, which
+    /// `descriptors` leaves out.
+    private(set) var unreadableCount = 0
     private(set) var isLoading = false
     private(set) var isChangingSynchronization = false
     private(set) var isPreparingExport = false
@@ -58,6 +61,7 @@ final class BrowserCredentialSpaceStore {
         defer { isLoading = false }
         do {
             let loadedDescriptors = try await browser.savedCredentialDescriptors(in: spaceID)
+            let loadedUnreadableCount = try await browser.unreadableCredentialCount(in: spaceID)
             guard !Task.isCancelled,
                 unlockedSpace(spaceID, accessController: accessController) != nil
             else {
@@ -65,6 +69,7 @@ final class BrowserCredentialSpaceStore {
                 return
             }
             descriptors = loadedDescriptors
+            unreadableCount = loadedUnreadableCount
         } catch {
             guard !Task.isCancelled,
                 unlockedSpace(spaceID, accessController: accessController) != nil
@@ -73,12 +78,14 @@ final class BrowserCredentialSpaceStore {
                 return
             }
             descriptors = []
+            unreadableCount = 0
             errorMessage = "Crest couldn’t read this Space’s saved-password metadata."
         }
     }
 
     func clearSensitiveData() {
         descriptors = []
+        unreadableCount = 0
         deletingCredentialIDs = []
         errorMessage = nil
         exportDocument = nil
@@ -104,6 +111,24 @@ final class BrowserCredentialSpaceStore {
                 await load(in: spaceID, accessController: accessController)
             } catch {
                 errorMessage = "Crest couldn’t delete that password from this Space."
+            }
+        }
+    }
+
+    /// Removes the Space's saved passwords that no longer read back, which no
+    /// list shows and no page is offered.
+    func deleteUnreadable(
+        in spaceID: UUID,
+        accessController: BrowserSpaceAccessController
+    ) {
+        guard unlockedSpace(spaceID, accessController: accessController) != nil else { return }
+        errorMessage = nil
+        Task { @MainActor in
+            do {
+                try await browser.deleteUnreadableCredentials(in: spaceID)
+                await load(in: spaceID, accessController: accessController)
+            } catch {
+                errorMessage = String(localized: "Crest couldn’t remove the passwords it can’t read.")
             }
         }
     }

@@ -99,15 +99,12 @@ extension CredentialOrigin: Codable {
         let decodedHost = try container.decode(String.self, forKey: .host)
         let decodedPort = try container.decode(Int.self, forKey: .port)
 
-        var components = URLComponents()
-        components.scheme = decodedScheme
-        components.host = decodedHost
-        components.port =
-            decodedPort == WebScheme.named(decodedScheme.lowercased())?.defaultPort
-            ? nil
-            : decodedPort
-        guard let url = components.url,
-            let canonical = CredentialOrigin(url: url),
+        guard
+            let canonical = CredentialOrigin(
+                securityProtocol: decodedScheme,
+                host: decodedHost,
+                port: decodedPort
+            ),
             canonical.scheme == decodedScheme,
             canonical.host == decodedHost,
             canonical.port == decodedPort

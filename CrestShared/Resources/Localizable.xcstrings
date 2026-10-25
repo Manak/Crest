@@ -832,6 +832,9 @@
     "%lld pt" : {
 
     },
+    "%lld saved passwords can’t be read" : {
+
+    },
     "%lld symbols" : {
 
     },
@@ -1530,6 +1533,9 @@
 
     },
     "1 item selected" : {
+
+    },
+    "1 saved password can’t be read" : {
 
     },
     "1 tab selected" : {
@@ -4269,6 +4275,9 @@
         }
       }
     },
+    "Crest can’t show or fill them. This cannot be undone." : {
+
+    },
     "Crest colors" : {
 
     },
@@ -4401,6 +4410,9 @@
           }
         }
       }
+    },
+    "Crest couldn’t remove the passwords it can’t read." : {
+
     },
     "Crest couldn’t save a strong password. Nothing was filled." : {
 
@@ -10596,6 +10608,9 @@
     "Remove last color" : {
 
     },
+    "Remove Passwords Crest Can’t Read?" : {
+
+    },
     "Remove Pattern Color" : {
 
     },
@@ -10624,6 +10639,9 @@
           }
         }
       }
+    },
+    "Remove…" : {
+
     },
     "Removing download records doesn’t delete the files." : {
 

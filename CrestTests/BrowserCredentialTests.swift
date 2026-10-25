@@ -238,8 +238,12 @@ final class BrowserCredentialTests: XCTestCase {
             in: CredentialKeychainNamespace.service(for: work, prefix: "test.crest")
         )
 
+        let offered = try await vault.descriptors(matching: origin, in: work)
+        XCTAssertTrue(offered.isEmpty, "Cross-Space metadata must never be offered")
+        let unreadableCount = try await vault.unreadableCredentialCount(in: work)
+        XCTAssertEqual(unreadableCount, 1)
         do {
-            _ = try await vault.descriptors(matching: origin, in: work)
+            _ = try await vault.credential(id: hostileDescriptor.id, in: work)
             XCTFail("Expected malformed cross-Space metadata to fail closed")
         } catch {
             XCTAssertEqual(error as? CredentialVaultError, .malformedStoredCredential)
