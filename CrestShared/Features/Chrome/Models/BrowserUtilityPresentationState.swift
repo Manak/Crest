@@ -46,13 +46,7 @@ final class BrowserUtilityPresentationState {
     ) {
         self.defaults = defaults
         self.persistenceKey = persistenceKey
-        guard let stored = defaults?.dictionary(forKey: persistenceKey) as? [String: String] else { return }
-        for (spaceID, name) in stored {
-            guard let spaceID = UUID(uuidString: spaceID), let surface = BrowserUtilitySurface.named(name) else {
-                continue
-            }
-            triggerSurfaces[spaceID] = surface
-        }
+        triggerSurfaces = storedTriggerSurfaces
     }
 
     var isSiteControlInteractionActive: Bool {
@@ -92,12 +86,32 @@ final class BrowserUtilityPresentationState {
 
     /// Makes `surface` the list the lists button opens in the Space `spaceID`
     /// names, and remembers it.
+    ///
+    /// Another presentation state over the same defaults, such as the private
+    /// window's, may have saved since this one read them, so each save starts
+    /// from what is stored now rather than from this state's own copy.
     func chooseTriggerSurface(_ surface: BrowserUtilitySurface, for spaceID: UUID) {
         guard triggerSurfaces[spaceID] != surface else { return }
-        triggerSurfaces[spaceID] = surface
+        var merged = triggerSurfaces
+        merged.merge(storedTriggerSurfaces) { _, stored in stored }
+        merged[spaceID] = surface
+        triggerSurfaces = merged
         var stored: [String: String] = [:]
-        for (spaceID, surface) in triggerSurfaces { stored[spaceID.uuidString] = surface.name }
+        for (spaceID, surface) in merged { stored[spaceID.uuidString] = surface.name }
         defaults?.set(stored, forKey: persistenceKey)
+    }
+
+    /// The choices the defaults hold now, by Space ID.
+    private var storedTriggerSurfaces: [UUID: BrowserUtilitySurface] {
+        guard let stored = defaults?.dictionary(forKey: persistenceKey) as? [String: String] else { return [:] }
+        var surfaces: [UUID: BrowserUtilitySurface] = [:]
+        for (spaceID, name) in stored {
+            guard let spaceID = UUID(uuidString: spaceID), let surface = BrowserUtilitySurface.named(name) else {
+                continue
+            }
+            surfaces[spaceID] = surface
+        }
+        return surfaces
     }
 
     /// Records a request that stays pending until the owning search field can receive it.

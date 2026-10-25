@@ -11,16 +11,22 @@ final class BrowserUtilityListTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let home = identifier(0x01)
         let work = identifier(0x02)
+        let play = identifier(0x03)
+        // Two windows' states over the same defaults, as the regular and
+        // private windows have, each reading them before the other writes.
         let first = BrowserUtilityPresentationState(defaults: defaults)
+        let second = BrowserUtilityPresentationState(defaults: defaults)
 
         first.chooseTriggerSurface(.downloads, for: home)
+        second.chooseTriggerSurface(.history, for: work)
 
-        XCTAssertEqual(first.triggerSurface(for: work), .archive)
+        XCTAssertEqual(first.triggerSurface(for: play), .archive)
 
         let restored = BrowserUtilityPresentationState(defaults: defaults)
 
         XCTAssertEqual(restored.triggerSurface(for: home), .downloads)
-        XCTAssertEqual(restored.triggerSurface(for: work), .archive)
+        XCTAssertEqual(restored.triggerSurface(for: work), .history)
+        XCTAssertEqual(restored.triggerSurface(for: play), .archive)
         restored.toggleSwitcher(for: home)
         XCTAssertEqual(restored.surface, .downloads)
     }
