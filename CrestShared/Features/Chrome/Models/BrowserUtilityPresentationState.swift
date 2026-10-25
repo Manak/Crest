@@ -6,6 +6,9 @@ import SwiftUI
 @MainActor
 final class BrowserUtilityPresentationState {
     static let triggerSurfacesDefaultsKey = "browser.utility.trigger-surfaces"
+    /// Where earlier releases kept the one list the button last opened, which
+    /// still answers for a Space nobody has chosen a list for.
+    static let lastSurfaceDefaultsKey = "browser.utility.selected-surface"
 
     private(set) var surface: BrowserUtilitySurface? {
         get { observed(\.surfaceStorage, as: \.surface) }
@@ -36,9 +39,11 @@ final class BrowserUtilityPresentationState {
     @ObservationIgnored private let persistenceKey: String
     /// The list the sidebar's lists button opens and wears the symbol of in
     /// each Space, by the Space's ID, as the person chose it from the button's
-    /// menu there. Kept across launches on this device; a Space nobody has
-    /// chosen for opens the archive.
+    /// menu there. Kept across launches on this device.
     private(set) var triggerSurfaces: [UUID: BrowserUtilitySurface] = [:]
+    /// What a Space nobody has chosen a list for opens: the list an earlier
+    /// release last opened, or the archive.
+    @ObservationIgnored private let unchosenSurface: BrowserUtilitySurface
 
     init(
         defaults: UserDefaults? = nil,
@@ -46,6 +51,8 @@ final class BrowserUtilityPresentationState {
     ) {
         self.defaults = defaults
         self.persistenceKey = persistenceKey
+        unchosenSurface =
+            defaults?.string(forKey: Self.lastSurfaceDefaultsKey).flatMap(BrowserUtilitySurface.named) ?? .archive
         triggerSurfaces = storedTriggerSurfaces
     }
 
@@ -81,15 +88,15 @@ final class BrowserUtilityPresentationState {
 
     /// The list the lists button opens in the Space `spaceID` names.
     func triggerSurface(for spaceID: UUID?) -> BrowserUtilitySurface {
-        spaceID.flatMap { triggerSurfaces[$0] } ?? .archive
+        spaceID.flatMap { triggerSurfaces[$0] } ?? unchosenSurface
     }
 
     /// Makes `surface` the list the lists button opens in the Space `spaceID`
     /// names, and remembers it.
     ///
-    /// Another presentation state over the same defaults, such as the private
-    /// window's, may have saved since this one read them, so each save starts
-    /// from what is stored now rather than from this state's own copy.
+    /// Another window's presentation state over the same defaults may have
+    /// saved since this one read them, so each save starts from what is
+    /// stored now rather than from this state's own copy.
     func chooseTriggerSurface(_ surface: BrowserUtilitySurface, for spaceID: UUID) {
         guard triggerSurfaces[spaceID] != surface else { return }
         var merged = triggerSurfaces
