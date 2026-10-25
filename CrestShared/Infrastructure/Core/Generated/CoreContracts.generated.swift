@@ -235,7 +235,6 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidCredentialOrigin(InvalidCredentialOrigin)
     case invalidCredentialRecord(InvalidCredentialRecord)
     case invalidCredentialUsername(InvalidCredentialUsername)
-    case invalidDateRange(InvalidDateRange)
     case invalidDownloadIdentity(InvalidDownloadIdentity)
     case invalidDownloadProgress(InvalidDownloadProgress)
     case invalidDownloadSample(InvalidDownloadSample)
@@ -1400,10 +1399,6 @@ struct CanTearOff: Query, Equatable, Sendable {
     let draggedTabs: [UUID]?
 }
 
-struct CancelClosePreparation: Intent, CloseIntent, Equatable, Sendable {
-    let requestID: UUID
-}
-
 struct CancelDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
     let message: String
@@ -2315,6 +2310,7 @@ struct DropAroundTab: Intent, SessionIntent, SidebarDrop, Equatable, Sendable {
     let spaceID: UUID
     let selection: TabSelection
     let tabID: UUID
+    let title: String?
 }
 
 struct DropIntoList: Intent, SessionIntent, SidebarDrop, Equatable, Sendable {
@@ -2893,6 +2889,7 @@ struct FolderTabs: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID
     let selection: TabSelection
     let placement: TabPlacement
+    let title: String?
 }
 
 struct FolderTabsAround: Intent, SessionIntent, Equatable, Sendable {
@@ -2901,6 +2898,7 @@ struct FolderTabsAround: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID
     let selection: TabSelection
     let tabID: UUID
+    let title: String?
 }
 
 struct FoldersChanged: CoreChange, Equatable, Sendable {
@@ -3261,9 +3259,6 @@ struct InvalidCredentialRecord: Equatable, Sendable {
 struct InvalidCredentialUsername: Equatable, Sendable {
 }
 
-struct InvalidDateRange: Equatable, Sendable {
-}
-
 struct InvalidDownloadIdentity: Equatable, Sendable {
 }
 
@@ -3441,7 +3436,6 @@ struct LaunchEnvironment: Equatable, Sendable {
         forcesOnboardingWelcome: false,
         forcesDesktopSetup: false,
         forcesMobileSetup: false,
-        runsPerformanceHarness: false,
         usesUpdateTestFeed: false
     )
 
@@ -3456,7 +3450,6 @@ struct LaunchEnvironment: Equatable, Sendable {
     var forcesOnboardingWelcome: Bool
     var forcesDesktopSetup: Bool
     var forcesMobileSetup: Bool
-    var runsPerformanceHarness: Bool
     var usesUpdateTestFeed: Bool
 }
 
@@ -3775,15 +3768,6 @@ struct MovePageToWindow: PageRequest, Equatable, Sendable {
 struct MoveSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
     let spaceID: UUID
     let targetSpaceID: UUID
-}
-
-struct MoveSplit: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let groupID: UUID
-    let placement: TabPlacement
-    let folderID: UUID?
-    let beforeTabID: UUID?
 }
 
 struct MoveSplitMember: Intent, SessionIntent, Equatable, Sendable {
@@ -4989,13 +4973,6 @@ struct RemoveHistoryAddress: Intent, SessionIntent, Equatable, Sendable {
     let address: String
 }
 
-struct RemoveHistoryRange: Intent, SessionIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let spaceID: UUID
-    let start: Date
-    let end: Date
-}
-
 struct RemoveLinkRoute: Intent, LinkIntent, Equatable, Sendable {
     let routeID: UUID
 }
@@ -5759,7 +5736,6 @@ struct SetupImportReview: Equatable, Sendable {
     let nextSpaceID: UUID?
     let showsLastSpace: Bool
     let includedPasswordCount: Int
-    let includedExtensionCount: Int
     let newSpaceCapacity: Int
     let extensionInstalls: [ImportExtensionInstall]
 }
