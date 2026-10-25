@@ -4,6 +4,27 @@ import XCTest
 @testable import Crest
 
 final class BrowserUtilityListTests: XCTestCase {
+    @MainActor
+    func testListsButtonChoiceIsKeptPerSpaceAcrossPresentationStates() throws {
+        let suiteName = "crest.tests.utility-presentation.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let home = identifier(0x01)
+        let work = identifier(0x02)
+        let first = BrowserUtilityPresentationState(defaults: defaults)
+
+        first.chooseTriggerSurface(.downloads, for: home)
+
+        XCTAssertEqual(first.triggerSurface(for: work), .archive)
+
+        let restored = BrowserUtilityPresentationState(defaults: defaults)
+
+        XCTAssertEqual(restored.triggerSurface(for: home), .downloads)
+        XCTAssertEqual(restored.triggerSurface(for: work), .archive)
+        restored.toggleSwitcher(for: home)
+        XCTAssertEqual(restored.surface, .downloads)
+    }
+
     func testDownloadReconciliationDropsRemovedAndForeignProfileRows() throws {
         let context = utilityDownloadContext()
         let prepared = utilityDownload(

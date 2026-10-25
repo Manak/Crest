@@ -5,7 +5,7 @@ import SwiftUI
 @Observable
 @MainActor
 final class BrowserUtilityPresentationState {
-    static let selectedSurfaceDefaultsKey = "browser.utility.selected-surface"
+    static let triggerSurfacesDefaultsKey = "browser.utility.trigger-surfaces"
 
     private(set) var surface: BrowserUtilitySurface? {
         get { observed(\.surfaceStorage, as: \.surface) }
@@ -34,20 +34,24 @@ final class BrowserUtilityPresentationState {
     @ObservationIgnored private var consumedSearchFocusRequest = 0
     @ObservationIgnored private let defaults: UserDefaults?
     @ObservationIgnored private let persistenceKey: String
-    /// The list the sidebar's lists button opens and wears the symbol of, as
-    /// the person chose it from the button's menu. Kept across launches.
-    private(set) var triggerSurface = BrowserUtilitySurface.archive
+    /// The list the sidebar's lists button opens and wears the symbol of in
+    /// each Space, by the Space's ID, as the person chose it from the button's
+    /// menu there. Kept across launches on this device; a Space nobody has
+    /// chosen for opens the archive.
+    private(set) var triggerSurfaces: [UUID: BrowserUtilitySurface] = [:]
 
     init(
         defaults: UserDefaults? = nil,
-        persistenceKey: String = selectedSurfaceDefaultsKey
+        persistenceKey: String = triggerSurfacesDefaultsKey
     ) {
         self.defaults = defaults
         self.persistenceKey = persistenceKey
-        if let rawValue = defaults?.string(forKey: persistenceKey),
-            let persistedSurface = BrowserUtilitySurface.named(rawValue)
-        {
-            triggerSurface = persistedSurface
+        guard let stored = defaults?.dictionary(forKey: persistenceKey) as? [String: String] else { return }
+        for (spaceID, name) in stored {
+            guard let spaceID = UUID(uuidString: spaceID), let surface = BrowserUtilitySurface.named(name) else {
+                continue
+            }
+            triggerSurfaces[spaceID] = surface
         }
     }
 
@@ -81,11 +85,19 @@ final class BrowserUtilityPresentationState {
         isSwitcherExpanded = true
     }
 
-    /// Makes `surface` the list the lists button opens, and remembers it.
-    func chooseTriggerSurface(_ surface: BrowserUtilitySurface) {
-        guard surface != triggerSurface else { return }
-        triggerSurface = surface
-        defaults?.set(surface.name, forKey: persistenceKey)
+    /// The list the lists button opens in the Space `spaceID` names.
+    func triggerSurface(for spaceID: UUID?) -> BrowserUtilitySurface {
+        spaceID.flatMap { triggerSurfaces[$0] } ?? .archive
+    }
+
+    /// Makes `surface` the list the lists button opens in the Space `spaceID`
+    /// names, and remembers it.
+    func chooseTriggerSurface(_ surface: BrowserUtilitySurface, for spaceID: UUID) {
+        guard triggerSurfaces[spaceID] != surface else { return }
+        triggerSurfaces[spaceID] = surface
+        var stored: [String: String] = [:]
+        for (spaceID, surface) in triggerSurfaces { stored[spaceID.uuidString] = surface.name }
+        defaults?.set(stored, forKey: persistenceKey)
     }
 
     /// Records a request that stays pending until the owning search field can receive it.
@@ -118,11 +130,14 @@ final class BrowserUtilityPresentationState {
         isSwitcherExpanded = false
     }
 
-    func toggleSwitcher(hasNewDownloads: Bool = false) {
+    /// Opens the lists for the Space `spaceID` names, or closes them: unseen
+    /// finished downloads open Downloads, otherwise the list chosen for that
+    /// Space.
+    func toggleSwitcher(for spaceID: UUID?, hasNewDownloads: Bool = false) {
         if isSwitcherExpanded {
             dismiss()
         } else {
-            present(hasNewDownloads ? .downloads : triggerSurface)
+            present(hasNewDownloads ? .downloads : triggerSurface(for: spaceID))
         }
     }
 
