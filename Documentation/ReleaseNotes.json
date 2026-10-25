@@ -4530,6 +4530,10 @@
       "category": "fixed",
       "message": "Passwords saved for an IPv6 address load again, and one saved password Crest can't read no longer hides a Space's other passwords. Settings can remove it."
     },
+    "escaped-address-saved-password-origin": {
+      "category": "fixed",
+      "message": "Passwords imported from another browser are no longer saved for the wrong site when the address contains escaped characters."
+    },
     "downloads-drag-out-as-files": {
       "category": "new",
       "message": "Finished downloads can be dragged out of the Downloads list and dropped into Finder or another app, like any file."

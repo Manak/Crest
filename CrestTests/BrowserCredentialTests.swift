@@ -28,6 +28,13 @@ final class BrowserCredentialTests: XCTestCase {
         XCTAssertNil(CredentialOrigin(url: try XCTUnwrap(URL(string: "ftp://example.com/file"))))
     }
 
+    func testCredentialOriginRejectsPercentEscapedHostsInsteadOfDecodingThemTwice() throws {
+        XCTAssertNil(CredentialOrigin(url: try XCTUnwrap(URL(string: "https://a%40b.com/login"))))
+        XCTAssertNil(CredentialOrigin(url: try XCTUnwrap(URL(string: "https://a%2Fb.com/login"))))
+        XCTAssertNil(CredentialOrigin(url: try XCTUnwrap(URL(string: "https://[fe80::1%25en0]/login"))))
+        XCTAssertNil(CredentialOrigin(url: try XCTUnwrap(URL(string: "https://%3A%3A1/login"))))
+    }
+
     func testLegacyCredentialDescriptorDecodesAsAWebFormCredential() throws {
         let spaceID = UUID()
         let origin = try XCTUnwrap(

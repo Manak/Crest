@@ -5,6 +5,15 @@ import Foundation
 /// member, so every origin is canonicalized here before it reaches the core or
 /// the vault.
 extension CredentialOrigin {
+    // MARK: - Static Variables
+
+    /// Characters that a decoded host must not keep, because parsing it again
+    /// would decode them a second time or read them as authority delimiters.
+    /// A colon is one too, except inside an IPv6 address's brackets.
+    private static let reparsedHostCharacters = CharacterSet(charactersIn: "%@/?#\\")
+        .union(.whitespacesAndNewlines)
+        .union(.controlCharacters)
+
     // MARK: - Variables
 
     var isSecure: Bool { WebScheme.named(scheme)?.isSecure == true }
@@ -15,16 +24,14 @@ extension CredentialOrigin {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
             let webScheme = WebScheme.named(components.scheme?.lowercased()),
             let rawHost = components.host,
-            !rawHost.isEmpty
+            !rawHost.isEmpty,
+            !rawHost.unicodeScalars.contains(where: Self.reparsedHostCharacters.contains),
+            rawHost.hasPrefix("[") || !rawHost.contains(":")
         else {
             return nil
         }
 
-        let authorityHost =
-            rawHost.contains(":") && !rawHost.hasPrefix("[")
-            ? "[\(rawHost)]"
-            : rawHost
-        guard let canonicalizationURL = URL(string: "https://\(authorityHost)"),
+        guard let canonicalizationURL = URL(string: "https://\(rawHost)"),
             let canonicalHost = canonicalizationURL.host(percentEncoded: false)?.lowercased(),
             !canonicalHost.isEmpty
         else {
