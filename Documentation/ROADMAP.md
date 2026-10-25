@@ -161,7 +161,6 @@ the live status for each issue.
 - [ ] [Say so when a link from another app needs a locked Space](https://github.com/pauljoda/Crest/issues/564)
 - [ ] [bug: An imported password with an IPv6 host makes the whole Space's passwords unreadable](https://github.com/pauljoda/Crest/issues/645)
 - [ ] [bug: Saved passwords: one bad item can break a Space, and other storage gaps](https://github.com/pauljoda/Crest/issues/649)
-- [ ] [Stop Crest freezing when an iCloud sync arrives during a save](https://github.com/pauljoda/Crest/issues/667)
 
 #### Completed
 
@@ -218,6 +217,7 @@ the live status for each issue.
 - [x] [Show what coding agents do in Crest and stop them all at once](https://github.com/pauljoda/Crest/issues/609) — [`db8c4e0e`](https://github.com/pauljoda/Crest/commit/db8c4e0ede11456a8b010dc536f318f7f6399b73)
 - [x] [Keep a Space's lock off after switching it off in Settings](https://github.com/pauljoda/Crest/issues/618) — [`0757dd90`](https://github.com/pauljoda/Crest/commit/0757dd903c6ab9a17d072699d922689857ed86e2)
 - [x] [Keep Look and Feel changes smooth while they preview live](https://github.com/pauljoda/Crest/issues/619) — [`b3fd540c`](https://github.com/pauljoda/Crest/commit/b3fd540c0157fb630535540793e68888f23f508a)
+- [x] [Stop Crest freezing when an iCloud sync arrives during a save](https://github.com/pauljoda/Crest/issues/667) — [`e4d08a31`](https://github.com/pauljoda/Crest/commit/e4d08a31582180422fd2870298d63f358ffe499a)
 
 <!-- crest-roadmap-sync:end -->
 

@@ -130,6 +130,7 @@ internal static partial class StoredSessionCodec {
             TolerantFlag(value[Key.SavedTabFaviconReturnsToSavedUrl]) ?? defaults.SavedTabFaviconReturnsToSavedUrl,
             TolerantFlag(value[Key.SplitFocusFollowsMouse]) ?? defaults.SplitFocusFollowsMouse,
             TolerantFlag(value[Key.AutomaticallyShowsDeveloperToolbar]) ?? defaults.AutomaticallyShowsDeveloperToolbar,
+            TolerantFlag(value[Key.ShowsRecentTabs]) ?? defaults.ShowsRecentTabs,
             DecodePalettePreferences(value[Key.Palette]));
     }
 
@@ -147,7 +148,8 @@ internal static partial class StoredSessionCodec {
             [Key.SavedTabClosePolicy] = preferences.SavedTabClose.Name,
             [Key.SavedTabFaviconReturnsToSavedUrl] = preferences.SavedTabFaviconReturnsToSavedUrl,
             [Key.SplitFocusFollowsMouse] = preferences.SplitFocusFollowsMouse,
-            [Key.AutomaticallyShowsDeveloperToolbar] = preferences.AutomaticallyShowsDeveloperToolbar
+            [Key.AutomaticallyShowsDeveloperToolbar] = preferences.AutomaticallyShowsDeveloperToolbar,
+            [Key.ShowsRecentTabs] = preferences.ShowsRecentTabs
         };
         if (!preferences.Palette.Equals(PalettePreferences.Default)) value[Key.Palette] = Encode(preferences.Palette);
         return value;

@@ -129,6 +129,7 @@ internal static partial class StoredSessionCodec {
         public const string SelectedSearchProviderId = "selectedSearchProviderID";
         public const string ShowsOutline = "showsOutline";
         public const string ShowsReasons = "showsReasons";
+        public const string ShowsRecentTabs = "showsRecentTabs";
         public const string ShowsTexture = "showsTexture";
         public const string ShowsTopHit = "showsTopHit";
         public const string Source = "source";

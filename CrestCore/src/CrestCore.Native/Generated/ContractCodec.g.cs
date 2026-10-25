@@ -14,7 +14,7 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0x9f, 0x71, 0xa6, 0x33, 0x71, 0x06, 0x33, 0x5d, 0x07, 0x65, 0x72, 0x20, 0x75, 0xcb, 0x33, 0x24, 0x83, 0xa2, 0x1d, 0x51, 0xd8, 0x1e, 0x69, 0x46, 0x88, 0xbd, 0xbf, 0x8d, 0xcc, 0xf7, 0xbf, 0xaa
+        0x63, 0x25, 0xde, 0x52, 0xe5, 0xbf, 0x84, 0xa7, 0x85, 0x70, 0xf6, 0x6e, 0x58, 0x36, 0x20, 0x43, 0xf8, 0x09, 0x3b, 0xa7, 0xa8, 0xb4, 0x07, 0xc5, 0xb7, 0xd7, 0x0a, 0x20, 0xcb, 0x0b, 0xb5, 0xb4
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
@@ -254,24 +254,25 @@ public static class ContractCodec {
             case 226: return ReadShowAdjacentTab(reader);
             case 227: return ReadShowHistoryEntry(reader);
             case 228: return ReadShowImportSpace(reader);
-            case 229: return ReadShowMostRecentTab(reader);
-            case 230: return ReadShowSetupStep(reader);
-            case 231: return ReadShowSpace(reader);
-            case 232: return ReadShowStartPage(reader);
-            case 233: return ReadShowTab(reader);
-            case 234: return ReadSplitTabs(reader);
-            case 235: return ReadStageLink(reader);
-            case 236: return ReadStartCloudSync(reader);
-            case 237: return ReadStartSetup(reader);
-            case 238: return ReadStepHistory(reader);
-            case 239: return ReadStepSplitMember(reader);
-            case 240: return ReadStopAgentTab(reader);
-            case 241: return ReadStopAllAgents(reader);
-            case 242: return ReadSweepExpiredRecords(reader);
-            case 243: return ReadTintSplit(reader);
-            case 244: return ReadToggleImportSource(reader);
-            case 245: return ReadTogglePin(reader);
-            case 246: return ReadUnassignShortcut(reader);
+            case 229: return ReadShowLeastRecentTab(reader);
+            case 230: return ReadShowMostRecentTab(reader);
+            case 231: return ReadShowSetupStep(reader);
+            case 232: return ReadShowSpace(reader);
+            case 233: return ReadShowStartPage(reader);
+            case 234: return ReadShowTab(reader);
+            case 235: return ReadSplitTabs(reader);
+            case 236: return ReadStageLink(reader);
+            case 237: return ReadStartCloudSync(reader);
+            case 238: return ReadStartSetup(reader);
+            case 239: return ReadStepHistory(reader);
+            case 240: return ReadStepSplitMember(reader);
+            case 241: return ReadStopAgentTab(reader);
+            case 242: return ReadStopAllAgents(reader);
+            case 243: return ReadSweepExpiredRecords(reader);
+            case 244: return ReadTintSplit(reader);
+            case 245: return ReadToggleImportSource(reader);
+            case 246: return ReadTogglePin(reader);
+            case 247: return ReadUnassignShortcut(reader);
             default: throw new WireFormatException($"Unknown Intent tag {tag}.");
         }
     }
@@ -1196,76 +1197,80 @@ public static class ContractCodec {
                 writer.WriteTag(228);
                 WriteShowImportSpace(writer, member);
                 break;
-            case ShowMostRecentTab member:
+            case ShowLeastRecentTab member:
                 writer.WriteTag(229);
+                WriteShowLeastRecentTab(writer, member);
+                break;
+            case ShowMostRecentTab member:
+                writer.WriteTag(230);
                 WriteShowMostRecentTab(writer, member);
                 break;
             case ShowSetupStep member:
-                writer.WriteTag(230);
+                writer.WriteTag(231);
                 WriteShowSetupStep(writer, member);
                 break;
             case ShowSpace member:
-                writer.WriteTag(231);
+                writer.WriteTag(232);
                 WriteShowSpace(writer, member);
                 break;
             case ShowStartPage member:
-                writer.WriteTag(232);
+                writer.WriteTag(233);
                 WriteShowStartPage(writer, member);
                 break;
             case ShowTab member:
-                writer.WriteTag(233);
+                writer.WriteTag(234);
                 WriteShowTab(writer, member);
                 break;
             case SplitTabs member:
-                writer.WriteTag(234);
+                writer.WriteTag(235);
                 WriteSplitTabs(writer, member);
                 break;
             case StageLink member:
-                writer.WriteTag(235);
+                writer.WriteTag(236);
                 WriteStageLink(writer, member);
                 break;
             case StartCloudSync member:
-                writer.WriteTag(236);
+                writer.WriteTag(237);
                 WriteStartCloudSync(writer, member);
                 break;
             case StartSetup member:
-                writer.WriteTag(237);
+                writer.WriteTag(238);
                 WriteStartSetup(writer, member);
                 break;
             case StepHistory member:
-                writer.WriteTag(238);
+                writer.WriteTag(239);
                 WriteStepHistory(writer, member);
                 break;
             case StepSplitMember member:
-                writer.WriteTag(239);
+                writer.WriteTag(240);
                 WriteStepSplitMember(writer, member);
                 break;
             case StopAgentTab member:
-                writer.WriteTag(240);
+                writer.WriteTag(241);
                 WriteStopAgentTab(writer, member);
                 break;
             case StopAllAgents member:
-                writer.WriteTag(241);
+                writer.WriteTag(242);
                 WriteStopAllAgents(writer, member);
                 break;
             case SweepExpiredRecords member:
-                writer.WriteTag(242);
+                writer.WriteTag(243);
                 WriteSweepExpiredRecords(writer, member);
                 break;
             case TintSplit member:
-                writer.WriteTag(243);
+                writer.WriteTag(244);
                 WriteTintSplit(writer, member);
                 break;
             case ToggleImportSource member:
-                writer.WriteTag(244);
+                writer.WriteTag(245);
                 WriteToggleImportSource(writer, member);
                 break;
             case TogglePin member:
-                writer.WriteTag(245);
+                writer.WriteTag(246);
                 WriteTogglePin(writer, member);
                 break;
             case UnassignShortcut member:
-                writer.WriteTag(246);
+                writer.WriteTag(247);
                 WriteUnassignShortcut(writer, member);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(value), value.GetType().Name, "Not a contract Intent.");
@@ -2510,23 +2515,24 @@ public static class ContractCodec {
             case 62: return ReadProfileNotificationDisplayCheck(reader);
             case 63: return ReadReadArchive(reader);
             case 64: return ReadReadImport(reader);
-            case 65: return ReadRecordsToUpload(reader);
-            case 66: return ReadResolveAddress(reader);
-            case 67: return ReadRouteExternalLink(reader);
-            case 68: return ReadRouteLocalDocument(reader);
-            case 69: return ReadSamePage(reader);
-            case 70: return ReadSchemeHandling(reader);
-            case 71: return ReadSecureOriginCheck(reader);
-            case 72: return ReadSelectionPreview(reader);
-            case 73: return ReadSelectionSearch(reader);
-            case 74: return ReadSiteDecision(reader);
-            case 75: return ReadSplitJoinCandidate(reader);
-            case 76: return ReadStrongPassword(reader);
-            case 77: return ReadSwipeNeighbors(reader);
-            case 78: return ReadSystemPasswordOffer(reader);
-            case 79: return ReadSystemPasswordWriteThrough(reader);
-            case 80: return ReadTranslationChoice(reader);
-            case 81: return ReadWindowToReopen(reader);
+            case 65: return ReadRecentTabs(reader);
+            case 66: return ReadRecordsToUpload(reader);
+            case 67: return ReadResolveAddress(reader);
+            case 68: return ReadRouteExternalLink(reader);
+            case 69: return ReadRouteLocalDocument(reader);
+            case 70: return ReadSamePage(reader);
+            case 71: return ReadSchemeHandling(reader);
+            case 72: return ReadSecureOriginCheck(reader);
+            case 73: return ReadSelectionPreview(reader);
+            case 74: return ReadSelectionSearch(reader);
+            case 75: return ReadSiteDecision(reader);
+            case 76: return ReadSplitJoinCandidate(reader);
+            case 77: return ReadStrongPassword(reader);
+            case 78: return ReadSwipeNeighbors(reader);
+            case 79: return ReadSystemPasswordOffer(reader);
+            case 80: return ReadSystemPasswordWriteThrough(reader);
+            case 81: return ReadTranslationChoice(reader);
+            case 82: return ReadWindowToReopen(reader);
             default: throw new WireFormatException($"Unknown Query tag {tag}.");
         }
     }
@@ -2795,72 +2801,76 @@ public static class ContractCodec {
                 writer.WriteTag(64);
                 WriteReadImport(writer, member);
                 break;
-            case RecordsToUpload member:
+            case RecentTabs member:
                 writer.WriteTag(65);
+                WriteRecentTabs(writer, member);
+                break;
+            case RecordsToUpload member:
+                writer.WriteTag(66);
                 WriteRecordsToUpload(writer, member);
                 break;
             case ResolveAddress member:
-                writer.WriteTag(66);
+                writer.WriteTag(67);
                 WriteResolveAddress(writer, member);
                 break;
             case RouteExternalLink member:
-                writer.WriteTag(67);
+                writer.WriteTag(68);
                 WriteRouteExternalLink(writer, member);
                 break;
             case RouteLocalDocument member:
-                writer.WriteTag(68);
+                writer.WriteTag(69);
                 WriteRouteLocalDocument(writer, member);
                 break;
             case SamePage member:
-                writer.WriteTag(69);
+                writer.WriteTag(70);
                 WriteSamePage(writer, member);
                 break;
             case SchemeHandling member:
-                writer.WriteTag(70);
+                writer.WriteTag(71);
                 WriteSchemeHandling(writer, member);
                 break;
             case SecureOriginCheck member:
-                writer.WriteTag(71);
+                writer.WriteTag(72);
                 WriteSecureOriginCheck(writer, member);
                 break;
             case SelectionPreview member:
-                writer.WriteTag(72);
+                writer.WriteTag(73);
                 WriteSelectionPreview(writer, member);
                 break;
             case SelectionSearch member:
-                writer.WriteTag(73);
+                writer.WriteTag(74);
                 WriteSelectionSearch(writer, member);
                 break;
             case SiteDecision member:
-                writer.WriteTag(74);
+                writer.WriteTag(75);
                 WriteSiteDecision(writer, member);
                 break;
             case SplitJoinCandidate member:
-                writer.WriteTag(75);
+                writer.WriteTag(76);
                 WriteSplitJoinCandidate(writer, member);
                 break;
             case StrongPassword member:
-                writer.WriteTag(76);
+                writer.WriteTag(77);
                 WriteStrongPassword(writer, member);
                 break;
             case SwipeNeighbors member:
-                writer.WriteTag(77);
+                writer.WriteTag(78);
                 WriteSwipeNeighbors(writer, member);
                 break;
             case SystemPasswordOffer member:
-                writer.WriteTag(78);
+                writer.WriteTag(79);
                 WriteSystemPasswordOffer(writer, member);
                 break;
             case SystemPasswordWriteThrough member:
-                writer.WriteTag(79);
+                writer.WriteTag(80);
                 WriteSystemPasswordWriteThrough(writer, member);
                 break;
             case TranslationChoice member:
-                writer.WriteTag(80);
+                writer.WriteTag(81);
                 WriteTranslationChoice(writer, member);
                 break;
             case WindowToReopen member:
-                writer.WriteTag(81);
+                writer.WriteTag(82);
                 WriteWindowToReopen(writer, member);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(value), value.GetType().Name, "Not a contract Query.");
@@ -3483,73 +3493,77 @@ public static class ContractCodec {
                 var answer64 = answers.Query(question);
                 WriteImportedSpaces(writer, answer64);
                 break;
-            case RecordsToUpload question:
+            case RecentTabs question:
                 var answer65 = answers.Query(question);
-                WriteUploadBatch(writer, answer65);
+                WriteRecentTabList(writer, answer65);
+                break;
+            case RecordsToUpload question:
+                var answer66 = answers.Query(question);
+                WriteUploadBatch(writer, answer66);
                 break;
             case ResolveAddress question:
-                var answer66 = answers.Query(question);
-                WriteResolvedAddress(writer, answer66);
+                var answer67 = answers.Query(question);
+                WriteResolvedAddress(writer, answer67);
                 break;
             case RouteExternalLink question:
-                var answer67 = answers.Query(question);
-                WriteExternalLinkPlacement(writer, answer67);
+                var answer68 = answers.Query(question);
+                WriteExternalLinkPlacement(writer, answer68);
                 break;
             case RouteLocalDocument question:
-                var answer68 = answers.Query(question);
-                WriteLocalDocumentPlacement(writer, answer68);
+                var answer69 = answers.Query(question);
+                WriteLocalDocumentPlacement(writer, answer69);
                 break;
             case SamePage question:
-                var answer69 = answers.Query(question);
-                WritePageMatch(writer, answer69);
+                var answer70 = answers.Query(question);
+                WritePageMatch(writer, answer70);
                 break;
             case SchemeHandling question:
-                var answer70 = answers.Query(question);
-                WriteSchemeHandled(writer, answer70);
+                var answer71 = answers.Query(question);
+                WriteSchemeHandled(writer, answer71);
                 break;
             case SecureOriginCheck question:
-                var answer71 = answers.Query(question);
-                WriteSecureOriginVerdict(writer, answer71);
+                var answer72 = answers.Query(question);
+                WriteSecureOriginVerdict(writer, answer72);
                 break;
             case SelectionPreview question:
-                var answer72 = answers.Query(question);
-                WriteSelectedTabs(writer, answer72);
+                var answer73 = answers.Query(question);
+                WriteSelectedTabs(writer, answer73);
                 break;
             case SelectionSearch question:
-                var answer73 = answers.Query(question);
-                WriteSelectionSearchAnswer(writer, answer73);
+                var answer74 = answers.Query(question);
+                WriteSelectionSearchAnswer(writer, answer74);
                 break;
             case SiteDecision question:
-                var answer74 = answers.Query(question);
-                WriteSitePermissionAnswer(writer, answer74);
+                var answer75 = answers.Query(question);
+                WriteSitePermissionAnswer(writer, answer75);
                 break;
             case SplitJoinCandidate question:
-                var answer75 = answers.Query(question);
-                WriteSplitJoinCandidateTab(writer, answer75);
+                var answer76 = answers.Query(question);
+                WriteSplitJoinCandidateTab(writer, answer76);
                 break;
             case StrongPassword question:
-                var answer76 = answers.Query(question);
-                WriteStrongPasswordRecipe(writer, answer76);
+                var answer77 = answers.Query(question);
+                WriteStrongPasswordRecipe(writer, answer77);
                 break;
             case SwipeNeighbors question:
-                var answer77 = answers.Query(question);
-                WriteSwipeNeighborTabs(writer, answer77);
+                var answer78 = answers.Query(question);
+                WriteSwipeNeighborTabs(writer, answer78);
                 break;
             case SystemPasswordOffer question:
-                var answer78 = answers.Query(question);
-                WriteSystemPasswordOfferDecision(writer, answer78);
+                var answer79 = answers.Query(question);
+                WriteSystemPasswordOfferDecision(writer, answer79);
                 break;
             case SystemPasswordWriteThrough question:
-                var answer79 = answers.Query(question);
-                WriteSystemPasswordWriteThroughSupport(writer, answer79);
+                var answer80 = answers.Query(question);
+                WriteSystemPasswordWriteThroughSupport(writer, answer80);
                 break;
             case TranslationChoice question:
-                var answer80 = answers.Query(question);
-                WriteTranslationDecision(writer, answer80);
+                var answer81 = answers.Query(question);
+                WriteTranslationDecision(writer, answer81);
                 break;
             case WindowToReopen question:
-                var answer81 = answers.Query(question);
-                WriteReopenedWindow(writer, answer81);
+                var answer82 = answers.Query(question);
+                WriteReopenedWindow(writer, answer82);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(query), query.GetType().Name, "Not a contract Query.");
         }
@@ -4306,6 +4320,7 @@ public static class ContractCodec {
             reader.ReadBool(),
             reader.ReadBool(),
             reader.ReadBool(),
+            reader.ReadBool(),
             ReadPalettePreferences(reader));
     }
 
@@ -4325,6 +4340,7 @@ public static class ContractCodec {
         writer.WriteBool(value.SavedTabFaviconReturnsToSavedUrl);
         writer.WriteBool(value.SplitFocusFollowsMouse);
         writer.WriteBool(value.AutomaticallyShowsDeveloperToolbar);
+        writer.WriteBool(value.ShowsRecentTabs);
         WritePalettePreferences(writer, value.Palette);
     }
 
@@ -13427,6 +13443,50 @@ public static class ContractCodec {
         WriteKeyCombination(writer, value.Keys);
     }
 
+    public static RecentTabItem ReadRecentTabItem(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new RecentTabItem(
+            reader.ReadList(() => reader.ReadGuid()),
+            reader.ReadGuid());
+    }
+
+    public static void WriteRecentTabItem(WireWriter writer, RecentTabItem value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteCount(value.TabIds.Count);
+        foreach (var itemTabIds in value.TabIds) {
+            writer.WriteGuid(itemTabIds);
+        }
+        writer.WriteGuid(value.FocusedTabId);
+    }
+
+    public static RecentTabList ReadRecentTabList(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new RecentTabList(
+            reader.ReadList(() => ReadRecentTabItem(reader)));
+    }
+
+    public static void WriteRecentTabList(WireWriter writer, RecentTabList value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteCount(value.Items.Count);
+        foreach (var itemItems in value.Items) {
+            WriteRecentTabItem(writer, itemItems);
+        }
+    }
+
+    public static RecentTabs ReadRecentTabs(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new RecentTabs(
+            reader.ReadGuid());
+    }
+
+    public static void WriteRecentTabs(WireWriter writer, RecentTabs value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.WindowId);
+    }
+
     public static RecordCloudFields ReadRecordCloudFields(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new RecordCloudFields(
@@ -16039,6 +16099,18 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteGuid(value.SourceSpaceId);
+    }
+
+    public static ShowLeastRecentTab ReadShowLeastRecentTab(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new ShowLeastRecentTab(
+            reader.ReadGuid());
+    }
+
+    public static void WriteShowLeastRecentTab(WireWriter writer, ShowLeastRecentTab value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.WindowId);
     }
 
     public static ShowMostRecentTab ReadShowMostRecentTab(WireReader reader) {

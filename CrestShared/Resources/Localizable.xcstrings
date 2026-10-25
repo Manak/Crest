@@ -379,6 +379,9 @@
         }
       }
     },
+    "%@, %lld of %lld" : {
+
+    },
     "%@, build %@, bundle identifier: %@" : {
 
     },
@@ -8115,6 +8118,9 @@
         }
       }
     },
+    "Most Recent Tab Backward" : {
+
+    },
     "Most Stars" : {
 
     },
@@ -10330,6 +10336,9 @@
     "Rearrange Spaces" : {
 
     },
+    "Recent tabs" : {
+
+    },
     "Recent Tabs" : {
 
     },
@@ -12189,6 +12198,9 @@
         }
       }
     },
+    "Show recent tabs while switching" : {
+
+    },
     "Show Saved Files" : {
 
     },
@@ -13127,6 +13139,9 @@
       }
     },
     "Switch to tabs opened from links" : {
+
+    },
+    "Switching" : {
 
     },
     "Sword" : {
