@@ -14,19 +14,42 @@ of the build with a reason, and everything else still builds.
 Plugins have versions and release notes of their own. Crest's
 `MARKETING_VERSION` and `Documentation/ReleaseNotes.json` stay upstream's.
 
+## Contents
+
+- [Model](#model)
+- [Layout](#layout)
+- [Lifecycle](#lifecycle)
+- [Commands](#commands)
+- [Writing a plugin](#writing-a-plugin)
+- [What a plugin is given](#what-a-plugin-is-given)
+- [Plugin storage](#plugin-storage)
+- [Settings → Crest Plugins](#settings--crest-plugins)
+- [Hook catalog](#hook-catalog)
+- [Adding a hook](#adding-a-hook)
+- [Health](#health)
+- [Versioning and release notes](#versioning-and-release-notes)
+- [Tests](#tests)
+- [Trade-offs worth knowing](#trade-offs-worth-knowing)
+
 ## Model
 
 - A **hook** is a seam: a generic extension point in upstream code, owned by
   the host, with a stable id and a version. Its patch is as small as the seam
-  allows and carries no behavior of its own. `Host/Hooks/<id>/`.
+  allows and carries no behavior of its own. `Host/Hooks/<id>/`. A hook may
+  also carry C# of its own in `Host/Hooks/<id>/Core/`, compiled into the core
+  beside its patches, when the seam needs a record or a partial there. A
+  **host-only hook** patches nothing: its seam is in the host's own code, such
+  as the Plugins settings pane, and it is listed so plugins can name it.
 - A **plugin** is behavior: Swift (and optionally C#) sources compiled into the
   app, which register **contributions** at hook points when the plugin is
   turned on. `Plugins/<id>/`.
 - A **contribution** is a typed value the host passes from the plugin to the
-  seam: a menu action, a row decoration, a wheel reading, an update provider.
+  seam: a menu action, a settings section, a view for a slot, a Space
+  observer, a row decoration, a wheel reading, an update provider.
 - The **host** (`Host/Sources`) runs the plugins: it reads what the build
-  recorded about them, keeps each one's switch, activates the enabled ones,
-  and hands their contributions to the seams. Settings → Plugins is its face.
+  recorded about them, keeps each one's switch and storage, activates the
+  enabled ones, watches the session for them, and hands their contributions to
+  the seams. Settings → Crest Plugins is its face.
 
 Three tiers of plugin, from preferred to last resort:
 
@@ -47,10 +70,12 @@ Plugins/
     host.json               Host version, hook catalog version, hooks in apply order
     Hooks/<id>/hook.json    id, version, summary, `required`, the files it patches
     Hooks/<id>/patches/     One patch per file, named by the file's path with `__` for `/`
+    Hooks/<id>/Core/        C# the hook adds to the core, when it has any
     Sources/Shared/         Compiled into every target that compiles CrestShared, iOS included
     Sources/Mac/            Compiled into the Mac targets only
   <plugin-id>/
     plugin.json             See "plugin.json"
+    README.md               What the plugin does and how it is built, when it is more than a page
     Sources/                Swift, compiled into the Mac app module (internal access)
     Core/                   C#, compiled into CrestCore (core plugins)
     Tests/                  Swift tests, compiled into CrestTests (the WebKit scheme)
@@ -92,17 +117,21 @@ never lands in history.
    conflict restores the hook's files and marks the hook unavailable. The
    `bootstrap` hook is required: when it fails, apply restores everything and
    exits with status 2, and `Personal/build-mac.sh` builds plain upstream
-   Crest with a warning.
+   Crest with a warning. A host-only hook has no patches and is always
+   available.
 3. Decides each included plugin's availability: its platforms include macOS,
    every hook it names exists at the version it asks for or later, and each
    applied. A patch-only plugin's own patches apply the same way.
-4. Copies core plugins' `Core/` into `CrestCore/src/CrestCore/PluginSources/<id>/`
-   (and `Tests/Core/` into the test project), real files so the SDK's source
-   glob and the core's change detection both see them, excluded from Git by
+4. Copies the applied hooks' `Core/` into
+   `CrestCore/src/CrestCore/PluginSources/_hooks/<id>/` and core plugins'
+   `Core/` into `CrestCore/src/CrestCore/PluginSources/<id>/` (and
+   `Tests/Core/` into the test project), real files so the SDK's source glob
+   and the core's change detection both see them, excluded from Git by
    `.git/info/exclude`. Runs `Scripts/control-plane/generate-contracts.sh`.
    If the regenerated `crest_engine_contract.h` differs, every core plugin is
-   marked unavailable and the sources are removed again: the published
-   Chromium engine is built against that header.
+   marked unavailable and the sources are removed again; a hook that changes
+   it is a host error, and apply stops. The published Chromium engine is built
+   against that header.
 5. Writes `.build/`: `Shared` and `Mac/Host` link to the host's sources,
    `Mac/<id>` and `Tests/<id>` to each available plugin's, plus
    `CrestPluginRegistry.generated.swift` naming the plugin types and
@@ -115,7 +144,7 @@ never lands in history.
 | `status [--revision REV] [--json]` | Where every hook and plugin stands against the index, or against another revision's tree such as `upstream/main`, using a scratch index so nothing is touched. Predicts three-way merges the way apply performs them. |
 | `apply [--dev]` | As above. |
 | `revert` | Restores the tree. |
-| `doctor [--scheme S] [--configuration C] [--keep]` | apply, `xcodegen generate`, `xcodebuild build` (default `CrestChromiumUIProduct`, Debug). A compile error under a plugin's folder marks that plugin `did not compile`, and the build runs again without it, up to three rounds. Runs the core tests when a core plugin is in. Reverts unless `--keep`. |
+| `doctor [--scheme S] [--configuration C] [--keep]` | apply, `xcodegen generate`, `xcodebuild build` (default `CrestChromiumUIProduct`, Debug). A compile error under a plugin's folder marks that plugin `did not compile`, and the build runs again without it, up to three rounds. Runs the core tests when any core source went in. Reverts unless `--keep`. |
 | `enable ID`, `disable ID` | Includes a plugin in, or leaves it out of, the build (`catalog.json`). |
 | `new ID --name N --summary S [--type T] [--core] [--patch-only]` | Scaffolds a plugin and adds it to the catalog. |
 | `capture` | Writes every hook's and patch-only plugin's patches from the working tree's changes to the files they own. Refuses a changed upstream file nobody owns. |
@@ -125,35 +154,44 @@ never lands in history.
 
 1. `Plugins/crest-plugins.py new my-thing --name "My thing" --summary "What it does for the person."`
 2. In `Sources/`, make the type conform to `CrestPlugin`: `static let id`,
-   `init()`, `activate(_ context:)`. Register contributions with
-   `context.contribute(_, at:)`. Throw from `activate` to refuse to run; the
-   error's description shows in Settings.
+   `init()`, `activate(_ context:)`, and `deactivate()` where `activate`
+   started something. Register contributions with `context.contribute(_, at:)`.
+   Throw from `activate` to refuse to run; the error's description shows in
+   Settings.
 3. List the hooks you use in `plugin.json` under `hooks`, each with the
    minimum hook version you wrote against. Always include `bootstrap`.
 4. Set `requiresRelaunch` to `true` if the contribution is read once at
    launch (the software update provider is). Otherwise the switch in Settings
-   takes effect at once.
-5. `Plugins/crest-plugins.py doctor` builds the Chromium host with the plugin
+   takes effect at once: `deactivate` runs and the contributions are dropped.
+5. Keep what the plugin must remember in `context.storage`; see "Plugin
+   storage". Give the plugin a settings panel (`plugins.settings`) when it has
+   a choice to offer or state worth showing.
+6. `Plugins/crest-plugins.py doctor` builds the Chromium host with the plugin
    in. Then `Personal/build-mac.sh --stage /tmp/Crest.app` and try it with
    `CREST_ISOLATED_SESSION=1`.
-6. Commit the plugin folder and `catalog.json`. Nothing else changes.
+7. Commit the plugin folder and `catalog.json`. Nothing else changes.
 
 Plugin code is compiled into the same module as upstream's, so it sees every
 internal type. It follows the repository's style skill like upstream code.
 User-facing strings are plain literals; the shared string catalog is
 upstream's and `revert` restores it.
 
+A plugin that contributes views hands them to the host as `CrestPluginView`,
+the host's one type-erasing wrapper: `CrestPluginView(MySection())`. The host
+draws them where the seam is; a section joins the pane's grouped form, a slot
+view stacks with the other plugins' views for that slot.
+
 ### plugin.json
 
 ```json
 {
-  "id": "typed-saved-address",
-  "name": "Typed saved address",
+  "id": "shared-pinned-tabs",
+  "name": "Shared pinned tabs",
   "version": "1.0.0",
   "summary": "One sentence, the user outcome.",
-  "type": "TypedSavedAddressPlugin",
+  "type": "SharedPinnedTabsPlugin",
   "platforms": ["macOS"],
-  "hooks": { "bootstrap": 1, "tabs.edit-actions": 1, "core.contracts": 1 },
+  "hooks": { "bootstrap": 1, "tabs.edit-actions": 2, "spaces.lifecycle": 1, "core.page-profile": 1 },
   "requiresRelaunch": false,
   "enabledByDefault": true,
   "files": []
@@ -165,11 +203,107 @@ has none. `files` lists the upstream files a patch-only plugin patches.
 `enabledByDefault` is the switch's position before the person moves it;
 `catalog.json`'s `enabled` says whether the plugin is compiled at all.
 
+## What a plugin is given
+
+`activate` receives a `CrestPluginContext`:
+
+| Member | What it is |
+| --- | --- |
+| `pluginID` | The plugin's id, as every contribution is filed under. |
+| `browser` | The `BrowserStore` of ordinary browsing: the session's Spaces and tabs as the read model holds them, and the way to send core intents (`openSessionTab`, `closeSessionTab`, `renameSessionTab`, `setSessionTabIcon`, `selectSpace`, and the rest). Shared state is changed only through these. |
+| `privateBrowser` | The store of private browsing. |
+| `core` | The `CrestCore` the stores run on, for a plugin's own intents (`core.send`) and queries (`core.query`). |
+| `storage` | The plugin's `CrestPluginStorage`; see below. |
+| `defaults` | The launch's `UserDefaults`, or nil in an isolated launch. Prefer `storage`. |
+| `launchEnvironment` | The `BrowserLaunchEnvironment`: isolation, test and preview flags. |
+| `contributions` | Where `contribute(_, at:)` files what the plugin adds. |
+
+Reading the session: `browser.spaceModels` are the Spaces in order,
+`browser.shownSpace` the one the window shows, `space.tabs.model(id)` a tab,
+`space.sidebar.section(.pinned).rows` the pinned order, `tab.placement`,
+`tab.savedURL`, `tab.customTitle`, `tab.iconMode` and `tab.emojiIcon` what a
+tab is. Every model is `@Observable`; a view or a `withObservationTracking`
+block that reads one follows it. There is no change stream: a plugin that
+reacts to the session registers a `spaces.lifecycle` observer, whose
+`sessionChanged` runs once per core batch, and reads what it needs then.
+
+## Plugin storage
+
+`CrestPluginStorage` is one JSON document per plugin, apart from every other
+plugin's and from Crest's own data. Values are `Codable`, keyed by name, and a
+value that belongs to one Space is keyed by that Space too. Reading a value
+observes it, so a settings row that reads one redraws when it changes.
+
+```swift
+// Plugin-wide values.
+storage.set(["a", "b"], forKey: "names")
+let names = storage.value([String].self, forKey: "names") ?? []
+storage.removeValue(forKey: "names")
+
+// A Space's values: the same keys, scoped to the Space.
+let scoped = storage.space(space.id)
+scoped.set(true, forKey: "mutes")
+let mutes = scoped.value(Bool.self, forKey: "mutes") ?? false
+
+// A binding for a settings control, with a default until it is set.
+Toggle("Follow the home tab", isOn: storage.binding("followsHome", default: true))
+Toggle("Mute", isOn: storage.space(space.id).binding("mutes", default: false))
+
+// Everything the plugin stored, or everything it stored for one Space.
+storage.removeAll()
+storage.forgetSpace(space.id)
+```
+
+Where the document lives follows the launch, the way Crest's own stores do:
+
+| Launch | Document |
+| --- | --- |
+| installed | `~/Library/Application Support/Crest/Plugins/<plugin id>/storage.json` |
+| named isolated (`CREST_ISOLATED_PERSISTENCE_ID`) | `.../Crest/Plugins/Isolated/<sha256 of the id>/<plugin id>/storage.json` |
+| any other isolated launch, test, preview | memory only; `isPersistent` is false |
+
+The document is written whole, atomically, on every change; plugin state is
+small. A value that no longer decodes as the type asked for reads as nil, so a
+plugin that changes a value's shape reads the old shape under its old key or
+starts over; a shape change is a `--major` bump. When a Space is deleted the
+host calls `forgetSpace` on every plugin's storage before telling observers,
+so Space-scoped values never outlive their Space. A plugin that is turned off
+keeps its storage; turning it on finds it again. The plugin's section in
+Settings → Crest Plugins says how much is stored and whether it persists.
+
+Storage is the plugin's own memory. State the core must know about to act,
+such as which profile a tab's pages run in, is sent to the core as an intent
+every launch (`core.page-profile` works this way); state the session should
+carry and sync is a core plugin's record, not a storage value.
+
+## Settings → Crest Plugins
+
+The pane the `bootstrap` hook adds. Its first section names the Crest
+version, the host and hook catalog versions the build was made with, and the
+Crest version it was made for. Then one section per plugin, headed by the
+plugin's name and version:
+
+- the switch, with the plugin's summary and its standing: On, Off, After
+  relaunch, Unavailable with the reason the build recorded, or Failed with the
+  message `activate` threw;
+- the rows the plugin contributes at `plugins.settings`, while it is on;
+- a footnote on what the plugin has stored, when it has stored anything.
+
+A closing section lists the hooks this Crest could not take, with the patch
+failure each recorded. The switch is kept under
+`crest.plugins.enabled.<id>` in the launch's defaults, so an isolated launch
+starts every plugin at `enabledByDefault`.
+
+Plugins also reach the other panes: `settings.sections` adds a section to any
+destination's pane, `spaces.settings-sections` to each Space's page.
+
 ## Hook catalog
 
-Every hook needs `bootstrap`. A plugin names the hooks it uses and the
+Every plugin needs `bootstrap`. A plugin names the hooks it uses and the
 minimum version of each; a hook's version rises when its contribution's shape
-changes in a way an older plugin would misread.
+changes in a way an older plugin would misread. Hooks marked host-only patch
+nothing. Hooks marked live toggle follow the plugin's switch at once; one read
+once at launch needs `requiresRelaunch`.
 
 ### `bootstrap` (v1, required)
 
@@ -177,14 +311,75 @@ Patches `project.yml` (the `.build` folders on every target, `optional`),
 `CrestMac/App/BrowserMacApplication.swift` (builds `CrestPluginHost` before the
 services that read hooks, calls `start`, injects the host and
 `\.crestPluginHooks` into both window roots), the settings catalog, router and
-Mac catalog (the Plugins pane). No contribution; it is the host.
+Mac catalog (the Crest Plugins pane). No contribution; it is the host.
 
-### `tabs.edit-actions` (v1)
+### `plugins.settings` (v1, host-only)
 
-Contribution `CrestPluginTabAction`: id, title, symbol, `isAvailable(tab)`,
-`perform(context)`. Rendered as buttons at the top of the Edit Tab menu for a
-saved or pinned tab. The context carries the tab, its runtime assignment, the
-window's `BrowserStore`, the surface's `restoreSavedLocation`, and a
+Contribution `CrestPluginSettingsPanel`: `id`, `make() -> CrestPluginView`.
+The rows a plugin shows under its own switch in Settings → Crest Plugins. The
+view is rows of a grouped form: toggles, pickers, text, buttons; it joins the
+plugin's section, so it has no `Section` of its own. Live toggle.
+
+### `spaces.lifecycle` (v1, host-only)
+
+Contribution `CrestPluginSpaceObserver`: `id` and four optional closures,
+`spacesAdded([SpaceModel])`, `spacesRemoved([UUID])`,
+`shownSpaceChanged(SpaceModel?)`, `sessionChanged()`. The host watches
+`browser` (not private browsing) and calls them on the main actor after the
+read model has taken the change. `spacesRemoved` runs after every plugin's
+storage has forgotten the Space. `sessionChanged` runs once per core batch
+that changed the session: a tab opened, moved, renamed, closed, a Space
+renamed. Live toggle.
+
+### `settings.sections` (v1)
+
+Contribution `CrestPluginSettingsSection`: `id`, `destination:
+BrowserSettingsDestination`, `make() -> CrestPluginView`. The view is a
+`Section` (or several) of the pane's grouped form, drawn after the pane's own.
+Patches `BrowserPlatformSettingsPaneContainer` (one line), through which every
+Mac pane draws. `.spaces` lands on every Space's Browsing page after its
+deletion section; use `spaces.settings-sections` for rows about one Space.
+Live toggle.
+
+### `spaces.settings-sections` (v1)
+
+Contribution `CrestPluginSpaceSettingsSection`: `id`,
+`make(CrestPluginSpaceSettingsContext) -> CrestPluginView`, the context being
+the `SpaceModel` and the `BrowserStore`. Drawn on the Space's Browsing tab
+between its own rows and its deletion. Patches `BrowserSettingsSpacePage` (one
+line). Live toggle.
+
+### `chrome.slots` (v1)
+
+Contribution `CrestPluginChromeSlotView`: `id`, `slot: CrestPluginChromeSlot`,
+`make(CrestPluginChromeSlotContext) -> CrestPluginView`, the context being
+the store, the Space the slot is drawn for and, for the page slot, the
+`BrowserPage`. Views for a slot stack vertically in catalog order; a slot no
+plugin fills takes no space. The slots:
+
+| Slot | Where | Drawn for |
+| --- | --- | --- |
+| `.sidebarTop` | under the address field, above the Spaces' moving content | the shown Space |
+| `.spaceAbovePinned` | the top of a Space's content, above its pinned tabs | that Space |
+| `.spaceBelowPinned` | between a Space's pinned tabs and its header | that Space |
+| `.spaceBottom` | under a Space's tab list, above the Space switcher | that Space |
+| `.pageTop` | a bar across the top of a web page, with the translation and developer bars | the shown page |
+
+Patches `SidebarChrome`, `SpaceSidebarBrowsingContent` and
+`BrowserWebContentView` (one line per slot). Live toggle. A slot view keeps
+to the design system: `crestInteractiveSurface` for rows, `CrestChromeButtonStyle`
+for glyph buttons, Crest colour tokens.
+
+### `tabs.edit-actions` (v2)
+
+Two contributions. `CrestPluginTabAction`: `id`, `title`, `symbol`,
+`isAvailable(tab)`, `perform(context)`, rendered as buttons at the top of the
+Edit Tab submenu for a saved or pinned tab (v1). `CrestPluginTabMenuItems`:
+`id`, `isAvailable(tab)`, `content(context) -> CrestPluginView`, rendered in
+the tab's own menu above Edit Tab, each followed by a divider, so a plugin can
+add a button, a submenu or a toggle per Space (v2). Both get a
+`CrestPluginTabActionContext`: the tab, its runtime assignment, the window's
+`BrowserStore`, the surface's `restoreSavedLocation`, and a
 `CrestPluginTextPromptPresenter`: `prompt.present(CrestPluginTextPromptRequest)`
 shows a one-field alert on the row or tile and calls `commit` with the text.
 Patches `BrowserTabEditActions`, `BrowserTabOrganizationMenuContent`,
@@ -232,24 +427,55 @@ Chromium engine is built against, and apply leaves such a plugin out. A new
 `partial` on another domain type is a change to this hook (add the file,
 bump the version).
 
-### Adding a hook
+### `core.page-profile` (v1)
+
+Lets a plugin run a tab's pages in another Space's engine profile, so the tab
+shares that Space's cookies, storage and sign-ins while Spaces otherwise keep
+them apart. The hook's own C# (`Host/Hooks/core.page-profile/Core/`) adds the
+intent `AssignTabProfile(workspaceID, tabID, profileID?)` and the rejection
+`ProfileNotHeld`, and a partial of `Pages` that keeps the assignments for the
+run. Patches `Pages.cs` (partial), `OpenPage.cs` (a tab's page opens in the
+assigned profile while a Space of the workspace still holds it, else in its
+Space's own) and `PageOffered.cs` (a window or popup a page opens in its
+assigned profile may join the page's Space, in that profile, so a sign-in
+window keeps the session it came from).
+
+Assignments live in memory: a plugin stores them itself and sends them again
+in `activate`. A page the tab already has open keeps the profile it opened
+in; the plugin puts it away (`closeSessionTab` on a pinned tab) so the next
+one opens in the assigned profile. A plugin takes an assignment back with a
+nil profile when it stops. Swift sends the intent with `core.send`; the
+`shared-pinned-tabs` plugin's `BrowserStore+SharedPins.swift` shows the wrap.
+
+What stays as it was: a link opened from such a page into a new tab opens in
+the new tab's own Space profile; downloads and notifications from the page are
+attributed to the Space that holds the profile; deleting the profile's Space
+destroys the page in the engine, so a plugin drops its assignments when the
+Space goes (`spaces.lifecycle`).
+
+## Adding a hook
 
 1. `apply --dev`, then edit the upstream file to open the seam: read
    contributions from `@Environment(\.crestPluginHooks)` in a view, from an
    init parameter in a model whose constructor sits in a patched file, or from
    `CrestPluginHooks.installed` where neither reaches. Keep behavior out of the
-   patch.
+   patch: one line that draws a host view or asks the host a question.
 2. Put the contribution type in `Host/Sources/Shared` if the seam is in
    `CrestShared` (iOS compiles it too; no AppKit), else in `Host/Sources/Mac`.
    Give it `static let hook = CrestPluginHookPoint<...>(id:version:)`.
-3. Add `Host/Hooks/<id>/hook.json` listing the files, add the id to
-   `host.json`, run `capture`, then `revert` and `apply` to prove the patch
-   applies from clean.
-4. Bump `hookCatalogVersion` in `host.json`.
+3. A seam in the core: patch the upstream C# as little as a `partial` and one
+   call allow, and put the records and partials in `Host/Hooks/<id>/Core/`.
+   Never an engine command or event.
+4. Add `Host/Hooks/<id>/hook.json` listing the files (an empty list for a
+   host-only hook), add the id to `host.json`, run `capture`, then `revert`
+   and `apply` to prove the patch applies from clean.
+5. Bump `hookCatalogVersion` in `host.json`, and the host's `version` when the
+   host's own API (`CrestPluginContext`, `CrestPluginStorage`) changed.
 
 ## Health
 
-Breakage is detected at three layers, and each shows in Settings → Plugins.
+Breakage is detected at three layers, and each shows in Settings → Crest
+Plugins.
 
 - **Patch.** A hook whose patch no longer applies, cleanly or by three-way
   merge, is unavailable, and so is every plugin that names it. `status
@@ -259,11 +485,11 @@ Breakage is detected at three layers, and each shows in Settings → Plugins.
   hook's and plugin's standing and reason.
 - **Compile.** `doctor` attributes compiler errors to the plugin whose folder
   they are in, marks it `did not compile`, and builds again without it. An
-  error outside any plugin stops it: that is a hook or host problem to fix.
+  error outside any plugin, including one under a hook's `Core/`, stops it:
+  that is a hook or host problem to fix.
 - **Runtime.** `activate` throwing leaves the plugin `Failed` with the
   message; its contributions are dropped. The person turns a plugin off or on
-  in Settings → Plugins; the host persists the switch under
-  `crest.plugins.enabled.<id>` in the launch's defaults.
+  in Settings → Crest Plugins.
 
 When a hook breaks after a sync: `apply --dev` (the hook is skipped), open
 the file, re-open the seam by hand against the new upstream code, `capture`,
@@ -277,18 +503,19 @@ the file, re-open the seam by hand against the new upstream code, `capture`,
 - The host has its own `version`, and the hook catalog a `hookCatalogVersion`.
 - A commit that changes only `Plugins/` does not bump `MARKETING_VERSION` or
   add to `Documentation/ReleaseNotes.json`. Those are upstream's.
-- Settings → Plugins shows the Crest version, the host and catalog versions
-  the build was made with, and each plugin's version. The build also records
-  the host version in Info.plist as `CrestPluginsHostVersion`.
+- Settings → Crest Plugins shows the Crest version, the host and catalog
+  versions the build was made with, and each plugin's version. The build also
+  records the host version in Info.plist as `CrestPluginsHostVersion`.
 
 ## Tests
 
 Plugin Swift tests go in `Tests/` and compile into `CrestTests`, which runs
 against the WebKit `Crest` scheme (`@testable import Crest`). Core tests go
-in `Tests/Core/` as partials of the test assembly's classes. Keep the
-repository's test policy: a test for a contract that breaks silently, none for
-appearance. Upstream's own tests must keep passing with the hooks applied and
-every plugin turned off, which is the state they run in.
+in `Tests/Core/` as partials of the test assembly's classes; a hook's core
+contract is tested from the plugin that depends on it. Keep the repository's
+test policy: a test for a contract that breaks silently, none for appearance.
+Upstream's own tests must keep passing with the hooks applied and every
+plugin turned off, which is the state they run in.
 
 ## Trade-offs worth knowing
 
@@ -298,40 +525,18 @@ every plugin turned off, which is the state they run in.
   none sits on a hot path.
 - `CrestPluginHooks.installed` is a global for code with no environment. Views
   read the environment value instead.
+- The Space watcher re-arms `withObservationTracking` over the Space list,
+  the shown Space and the session revision after every change, as Crest's
+  own services do. Observers are called once per batch, after the read model
+  moved, never during a core turn.
+- `core.page-profile` keeps assignments in the core's memory and lets a page
+  run in a profile its Space does not hold. The Swift page pool still records
+  the Space's profile on the page, which only its failure overlay and its
+  release on Space deletion read; a plugin that assigns profiles removes its
+  tabs when either Space goes.
 - `SpaceWheelFlickRecognizer` is a copy of upstream's recognizer with the
   phase-less path changed. A fix to upstream's phased path must be carried
   over by hand; the phased scenarios in the plugin's tests catch a drift.
 - The source updater is a plugin like the rest. If its hook stops applying,
   the terminal path still works: `Personal/sync-upstream.sh &&
   Personal/build-mac.sh`.
-
-## Worked design: shared pinned tabs
-
-A pinned tab shared between Spaces, with one signed-in session behind it, is
-the kind of plugin this system is meant to carry. What it would take:
-
-- **Core state.** Membership of a pin in several Spaces is plugin-owned state.
-  It needs a hook, `core.plugin-state` (planned), through which the core keeps
-  a JSON document per plugin id in the session file and in sync records, with
-  intents the plugin defines (`SharePin`, `UnsharePin`) under
-  `core.contracts`. Deleting a Space must drop its memberships: the hook
-  would give plugin state a `spaceDeleted` callback.
-- **One session.** Spaces are the privacy boundary: each has its own engine
-  profile, so cookies never cross. A shared pin therefore runs in a profile of
-  its own, shared by the Spaces it belongs to. That needs an engine seam,
-  `engine.profile-for-tab` (planned, single winner): asked which profile a
-  tab's page runs in, the plugin answers the shared profile for a shared pin
-  and nil for every other tab. The profile is created and deleted through the
-  core's existing website-data paths. Nothing in Chromium or WebKit changes.
-- **Presentation.** The pinned grid shows the shared pins in every member
-  Space. Either the grid reads a contribution that supplies extra tiles
-  (`tabs.pinned-grid.sections`, planned), or the plugin keeps a real pinned
-  tab per Space and only the page runtime is shared; the second needs no grid
-  hook and keeps drag, rename and icon behavior as they are.
-- **Switching Spaces** while the shared pin shows: the page keeps running in
-  its profile; the window shows the same tab runtime under the other Space's
-  identity. This is where the design has to respect "one live page per tab
-  runtime" and will need the page pool's cooperation, a seam to add then.
-
-Three hooks, one of them at the engine boundary, and one core plugin. None
-touches Chromium's patches, so the published engine stays valid.

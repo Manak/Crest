@@ -1,0 +1,7 @@
+{
+  "id": "spaces.lifecycle",
+  "version": 1,
+  "summary": "The host reports Spaces appearing and going, the shown Space moving and every session change to the plugins that observe them. Host-only: patches nothing.",
+  "required": false,
+  "files": []
+}

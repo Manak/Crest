@@ -1,0 +1,12 @@
+diff --git a/CrestMac/Features/Settings/Components/BrowserPlatformSettingsPaneContainer.swift b/CrestMac/Features/Settings/Components/BrowserPlatformSettingsPaneContainer.swift
+index 34678e06..b3ff6fac 100644
+--- a/CrestMac/Features/Settings/Components/BrowserPlatformSettingsPaneContainer.swift
++++ b/CrestMac/Features/Settings/Components/BrowserPlatformSettingsPaneContainer.swift
+@@ -27,6 +27,7 @@ struct BrowserPlatformSettingsPaneContainer<Content: View>: View {
+         BrowserSettingsColumnLayout(columnWidth: columnWidth ?? BrowserSettingsLayout.formColumnWidth) {
+             Form {
+                 content
++                CrestPluginSettingsSections(destination: destination)
+             }
+             .formStyle(.grouped)
+             .scrollContentBackground(.hidden)

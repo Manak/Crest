@@ -1,0 +1,19 @@
+{
+  "id": "shared-pinned-tabs",
+  "name": "Shared pinned tabs",
+  "version": "1.0.0",
+  "summary": "A pinned tab can be shared into other Spaces, where it opens with the cookies and sign-ins of its home Space.",
+  "type": "SharedPinnedTabsPlugin",
+  "platforms": ["macOS"],
+  "hooks": {
+    "bootstrap": 1,
+    "tabs.edit-actions": 2,
+    "spaces.lifecycle": 1,
+    "plugins.settings": 1,
+    "spaces.settings-sections": 1,
+    "core.contracts": 1,
+    "core.page-profile": 1
+  },
+  "requiresRelaunch": false,
+  "enabledByDefault": true
+}

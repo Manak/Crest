@@ -62,6 +62,17 @@ final class CrestPluginContributions {
         }
     }
 
+    /// One plugin's contributions at `point`, whether or not it is active;
+    /// Settings shows a plugin's own rows beside its switch.
+    func contributions<Contribution>(at point: CrestPluginHookPoint<Contribution>, from pluginID: String)
+        -> [Contribution]
+    {
+        (entries[point.id] ?? []).compactMap { entry in
+            guard entry.pluginID == pluginID else { return nil }
+            return entry.contribution as? Contribution
+        }
+    }
+
     func isActive(_ pluginID: String) -> Bool {
         activePluginIDs.contains(pluginID)
     }

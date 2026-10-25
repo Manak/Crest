@@ -1,0 +1,34 @@
+diff --git a/CrestCore/src/CrestCore/Application/Pages/Events/PageOffered.cs b/CrestCore/src/CrestCore/Application/Pages/Events/PageOffered.cs
+index bacb9442..5e4fd6e4 100644
+--- a/CrestCore/src/CrestCore/Application/Pages/Events/PageOffered.cs
++++ b/CrestCore/src/CrestCore/Application/Pages/Events/PageOffered.cs
+@@ -66,7 +66,7 @@ public sealed record PageOffered(Guid OfferId, Guid ProfileId, Guid? SourcePageI
+             return false;
+         }
+         if (pages.Device.Attached(workspaceId) is not { } workspace || Hostable(workspace, spaceId) is not { } space
+-            || space.ProfileId != ProfileId)
++            || !pages.Hosts(workspace, space, ProfileId, source))
+             return false;
+         var tabId = pages.Ids.Next();
+         try {
+@@ -80,7 +80,7 @@ public sealed record PageOffered(Guid OfferId, Guid ProfileId, Guid? SourcePageI
+         // Every page the engine offers was opened by software, a page or an
+         // extension, never by the person, so it may close itself as it would
+         // in any browser, and it stays on the engine that opened it.
+-        var page = new Page(pages.Ids.Next(), engine, space.ProfileId, workspaceId, space.Id, tabId, windowId, transient: null,
++        var page = new Page(pages.Ids.Next(), engine, ProfileId, workspaceId, space.Id, tabId, windowId, transient: null,
+             openedByPage: true);
+         pages.Add(page);
+         turn.Changes.Publish(new PageOpened(page.State));
+@@ -94,9 +94,9 @@ public sealed record PageOffered(Guid OfferId, Guid ProfileId, Guid? SourcePageI
+     /// whether the Space took it.
+     private bool AdoptedAsWindow(Pages pages, Engine engine, Page source, PageTurn turn) {
+         if (pages.Device.Attached(source.WorkspaceId) is not { } workspace || Hostable(workspace, source.SpaceId) is not { } space
+-            || space.ProfileId != ProfileId)
++            || !pages.Hosts(workspace, space, ProfileId, source))
+             return false;
+-        var page = new Page(pages.Ids.Next(), engine, space.ProfileId, source.WorkspaceId, space.Id, tabId: null, source.WindowId,
++        var page = new Page(pages.Ids.Next(), engine, ProfileId, source.WorkspaceId, space.Id, tabId: null, source.WindowId,
+             TransientPresentation.QuickWindow, openedByPage: true);
+         pages.Add(page);
+         turn.Changes.Publish(new PageOpened(page.State));

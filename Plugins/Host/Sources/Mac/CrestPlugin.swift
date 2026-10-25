@@ -23,15 +23,20 @@ extension CrestPlugin {
 }
 
 /// What a plugin gets when it is turned on: the stores of both browsing
-/// modes, the core, the defaults a personal setting goes in, and the place
-/// its contributions go.
+/// modes, the core, its own storage, the defaults a personal setting may go
+/// in, and the place its contributions go.
 @MainActor
 struct CrestPluginContext {
     let pluginID: String
     let browser: BrowserStore
     let privateBrowser: BrowserStore
     let core: CrestCore
-    /// Nil in an isolated launch, which keeps no personal settings.
+    /// What the plugin keeps between launches, apart from every other
+    /// plugin's data; see `CrestPluginStorage`.
+    let storage: CrestPluginStorage
+    /// Nil in an isolated launch, which keeps no personal settings. Prefer
+    /// `storage`: it is scoped to the plugin and survives a named isolated
+    /// launch.
     let defaults: UserDefaults?
     let launchEnvironment: BrowserLaunchEnvironment
     let contributions: CrestPluginContributions

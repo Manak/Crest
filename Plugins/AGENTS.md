@@ -42,6 +42,35 @@ govern code style, architecture and tests. Read `Plugins/README.md` first.
   `Documentation/ReleaseNotes.json`. `Scripts/check-version.sh --fix-commit`
   is for upstream contributions only.
 
+## Storage, settings and the session
+
+- What a plugin remembers goes in `context.storage` (`CrestPluginStorage`),
+  never in `UserDefaults` keys of its own or files it names itself. A value
+  about one Space goes in `storage.space(id)`, so it leaves with the Space.
+- A plugin with a choice to offer shows it as rows at `plugins.settings`; rows
+  about a Space go at `spaces.settings-sections`; a section in another pane
+  at `settings.sections`. Rows follow the design system and the writing rules
+  of the contribution skill: short native copy, no explanatory subtitles.
+- A plugin that reacts to the session registers a `spaces.lifecycle`
+  observer. It never polls, never keeps its own copy of the session, and
+  changes shared state only through `BrowserStore` methods and core intents.
+- State the core must act on, such as a tab's profile, is an intent sent in
+  `activate` from storage every launch; see `core.page-profile`.
+
+## Hooks
+
+- A hook's patch opens a seam and nothing more: one line that draws a host
+  view or asks the host a question. Behavior lives in the host's contribution
+  type or the plugin.
+- A hook that needs C# puts it in `Host/Hooks/<id>/Core/`; the patch to the
+  upstream file is a `partial` and a call. Never an engine command or event.
+- A hook whose seam is in the host's own code (the Plugins pane, the Space
+  watcher) is host-only: `files` is empty, and it is listed so plugins can
+  name it.
+- Changing a hook's contribution shape bumps the hook's `version` and
+  `hookCatalogVersion`; adding a type at the same seam keeps old plugins
+  compiling, so they keep their minimum.
+
 ## Core plugins
 
 - Records are `public`, in namespace `CrestCore.Contracts`, and are intents,
@@ -56,6 +85,9 @@ govern code style, architecture and tests. Read `Plugins/README.md` first.
 - Both `status` (against the index) and `status --revision upstream/main`
   were run and their results are in the report, including any plugin the next
   sync would leave out.
+- `Plugins/README.md` describes every hook the change added or changed, and a
+  plugin that is more than a page has a `README.md` saying what it does, how
+  it works and what it stores.
 - The staged app was launched with `CREST_ISOLATED_SESSION=1`, the plugin's
   behavior checked, Settings → Plugins checked, and the test copy quit,
   unregistered with `lsregister -u` and deleted.

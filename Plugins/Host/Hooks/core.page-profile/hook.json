@@ -1,0 +1,11 @@
+{
+  "id": "core.page-profile",
+  "version": 1,
+  "summary": "Lets a plugin assign a tab the engine profile of another Space, so its pages run with that Space's cookies and storage; the core opens the tab's pages, and the windows they open, in the assigned profile.",
+  "required": false,
+  "files": [
+    "CrestCore/src/CrestCore/Application/Pages/Pages.cs",
+    "CrestCore/src/CrestCore/Application/Pages/Intents/OpenPage.cs",
+    "CrestCore/src/CrestCore/Application/Pages/Events/PageOffered.cs"
+  ]
+}

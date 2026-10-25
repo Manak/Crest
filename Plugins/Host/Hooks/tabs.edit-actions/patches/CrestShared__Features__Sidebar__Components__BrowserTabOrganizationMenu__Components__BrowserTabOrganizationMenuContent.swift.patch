@@ -1,9 +1,25 @@
 diff --git a/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabOrganizationMenuContent.swift b/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabOrganizationMenuContent.swift
-index 0e02929b..a0e179ac 100644
+index 0e02929b..2fd6fb03 100644
 --- a/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabOrganizationMenuContent.swift
 +++ b/CrestShared/Features/Sidebar/Components/BrowserTabOrganizationMenu/Components/BrowserTabOrganizationMenuContent.swift
-@@ -57,6 +57,8 @@ struct BrowserTabOrganizationMenuContent: View {
+@@ -9,6 +9,7 @@ struct BrowserTabOrganizationMenuContent: View {
+     var changeIcon: (() -> Void)? = nil
+ 
+     @Environment(\.layoutDirection) private var layoutDirection
++    @Environment(\.crestPluginTabPrompt) private var pluginPrompt
+ 
+     init(menu: BrowserTabOrganizationMenu) {
+         tab = menu.tab
+@@ -55,8 +56,16 @@ struct BrowserTabOrganizationMenuContent: View {
+         }
+ 
          if !tab.isStartPage {
++            CrestPluginTabMenuContent(
++                context: CrestPluginTabActionContext(
++                    tab: tab, assignment: assignment, browser: browser,
++                    restoreSavedLocation: context.restoreSavedLocation.map { restore in { restore(tab.id) } },
++                    prompt: pluginPrompt))
++
              BrowserTabEditActions(
                  tab: tab,
 +                assignment: assignment,

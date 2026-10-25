@@ -58,6 +58,8 @@ ENGINE_CONTRACT = "CrestContracts/include/crest_engine_contract.h"
 RESTORED_WITH_HOOKS = ("CrestShared/Resources/Localizable.xcstrings", "Crest.xcodeproj")
 CORE_SOURCES = ROOT / "CrestCore/src/CrestCore/PluginSources"
 CORE_TESTS = ROOT / "CrestCore/tests/CrestCore.Tests/PluginSources"
+# Hooks' own core sources go under this name, which no plugin id can take.
+HOOK_CORE_FOLDER = "_hooks"
 LOCAL_EXCLUDES = ("CrestCore/src/CrestCore/PluginSources/", "CrestCore/tests/CrestCore.Tests/PluginSources/")
 OWN_PATHS = ("Plugins/", "Personal/")
 ERROR_LINE = re.compile(r"^(?P<path>/[^:]+):(?P<line>\d+):(?P<column>\d+): error: (?P<message>.*)$")
@@ -118,6 +120,16 @@ class Hook(PatchSet):
     version: int = 1
     summary: str = ""
     required: bool = False
+
+    @property
+    def core(self) -> Path:
+        """C# the hook adds to the core beside its patches: a partial of a
+        type a patch made partial, or a record under CrestCore.Contracts."""
+        return self.directory / "Core"
+
+    @property
+    def has_core(self) -> bool:
+        return self.core.is_dir() and any(self.core.rglob("*.cs"))
 
 
 @dataclass
@@ -389,6 +401,8 @@ def write_build_folder(host: dict, hooks: list[Hook], hook_outcomes: dict[str, O
     link(HOST / "Sources/Shared", BUILD / "Shared")
     link(HOST / "Sources/Mac", BUILD / "Mac/Host")
     (BUILD / "Tests").mkdir()
+    if (HOST / "Tests").is_dir():
+        link(HOST / "Tests", BUILD / "Tests/Host")
     registry_types = []
     for plugin in plugins:
         outcome = plugin_outcomes[plugin.id]
@@ -429,19 +443,25 @@ def write_build_folder(host: dict, hooks: list[Hook], hook_outcomes: dict[str, O
     (BUILD / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2) + "\n")
 
 
-def copy_core_sources(plugins: list[Plugin], plugin_outcomes: dict[str, Outcome]) -> list[Plugin]:
+def copy_core_sources(hooks: list[Hook], hook_outcomes: dict[str, Outcome], plugins: list[Plugin],
+                      plugin_outcomes: dict[str, Outcome]) -> tuple[list[Hook], list[Plugin]]:
+    """Copies the core sources of the applied hooks and the available core
+    plugins into the core, and answers which hooks and plugins contributed."""
     for directory in (CORE_SOURCES, CORE_TESTS):
         if directory.exists():
             shutil.rmtree(directory)
+    core_hooks = [h for h in hooks if hook_outcomes[h.id].available and h.has_core]
     core_plugins = [p for p in plugins if plugin_outcomes[p.id].available and p.tier == "core"]
-    if not core_plugins:
-        return []
+    if not core_hooks and not core_plugins:
+        return [], []
     ensure_local_excludes()
+    for hook in core_hooks:
+        shutil.copytree(hook.core, CORE_SOURCES / HOOK_CORE_FOLDER / hook.id)
     for plugin in core_plugins:
         shutil.copytree(plugin.core, CORE_SOURCES / plugin.id, ignore=shutil.ignore_patterns("Tests"))
         if plugin.core_tests.is_dir():
             shutil.copytree(plugin.core_tests, CORE_TESTS / plugin.id)
-    return core_plugins
+    return core_hooks, core_plugins
 
 
 def generate_contracts() -> None:
@@ -602,15 +622,22 @@ def perform_apply(dev: bool, excluded: dict[str, str] | None = None) -> dict:
             else:
                 outcome.notes.extend(patched.notes)
         plugin_outcomes[plugin.id] = outcome
-    core_plugins = copy_core_sources(plugins, plugin_outcomes)
-    if core_plugins:
+    core_hooks, core_plugins = copy_core_sources(hooks, hook_outcomes, plugins, plugin_outcomes)
+    if core_hooks or core_plugins:
         generate_contracts()
         if engine_contract_changed():
+            # A hook's records are the host's own; a plugin's are left out.
             for plugin in core_plugins:
                 plugin_outcomes[plugin.id] = Outcome(
                     False, "its core records change the engine contract, which the published Chromium engine fixes")
-            copy_core_sources(plugins, plugin_outcomes)
+            copy_core_sources(hooks, hook_outcomes, plugins, plugin_outcomes)
             restore(list(GENERATED_FILES))
+            if core_hooks:
+                generate_contracts()
+                if engine_contract_changed():
+                    restore(list(GENERATED_FILES))
+                    raise PluginError("a hook's core records change the engine contract, which the published "
+                                      "Chromium engine fixes: " + ", ".join(hook.id for hook in core_hooks))
     write_build_folder(host, hooks, hook_outcomes, plugins, plugin_outcomes)
     state = {
         "appliedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
@@ -739,7 +766,7 @@ def command_doctor(arguments: argparse.Namespace) -> int:
         print("The build still fails after three rounds.", file=sys.stderr)
         finish_doctor(arguments, state, failed=True)
         return 1
-    if any(p.tier == "core" and state["plugins"][p.id]["available"] for p in load_plugins()) and CORE_TESTS.exists():
+    if CORE_SOURCES.exists():
         print("== Core tests")
         environment = dict(os.environ)
         environment["PATH"] = ":".join([str(Path.home() / ".dotnet"), environment.get("PATH", "")])
@@ -769,7 +796,8 @@ def attribute_errors(output: str) -> dict[str | None, list[str]]:
                 plugin_id = parts[3]
             elif parts[:1] == ("Plugins",) and len(parts) > 1 and parts[1] not in (".build", "Host"):
                 plugin_id = parts[1]
-            elif parts[:4] == ("CrestCore", "src", "CrestCore", "PluginSources") and len(parts) > 4:
+            elif parts[:4] == ("CrestCore", "src", "CrestCore", "PluginSources") and len(parts) > 4 \
+                    and parts[4] != HOOK_CORE_FOLDER:
                 plugin_id = parts[4]
         except ValueError:
             pass

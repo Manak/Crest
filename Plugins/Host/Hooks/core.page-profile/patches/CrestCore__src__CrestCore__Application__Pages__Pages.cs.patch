@@ -1,0 +1,13 @@
+diff --git a/CrestCore/src/CrestCore/Application/Pages/Pages.cs b/CrestCore/src/CrestCore/Application/Pages/Pages.cs
+index a0b7e06a..d60f00d3 100644
+--- a/CrestCore/src/CrestCore/Application/Pages/Pages.cs
++++ b/CrestCore/src/CrestCore/Application/Pages/Pages.cs
+@@ -38,7 +38,7 @@ internal sealed record PageTurn(ChangeFeed Changes, Action<Engine, EngineCommand
+ /// changes the pages through the state and rules kept here. A page's report
+ /// is stamped with the core's `clock`, and a visit it records takes its
+ /// identity from `ids`.
+-internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSource ids) {
++internal sealed partial class Pages(Device device, Engines engines, IClock clock, IIdSource ids) {
+     #region Static Variables
+ 
+     /// The most restore states the core holds; past it, the oldest goes.

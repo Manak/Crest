@@ -1,12 +1,18 @@
 {
-  "version": "1.0.0",
-  "hookCatalogVersion": 1,
+  "version": "2.0.0",
+  "hookCatalogVersion": 2,
   "hooks": [
     "bootstrap",
+    "plugins.settings",
+    "spaces.lifecycle",
+    "settings.sections",
+    "spaces.settings-sections",
+    "chrome.slots",
     "tabs.edit-actions",
     "downloads.row-decoration",
     "space-pager.wheel",
     "software-updates.provider",
-    "core.contracts"
+    "core.contracts",
+    "core.page-profile"
   ]
 }

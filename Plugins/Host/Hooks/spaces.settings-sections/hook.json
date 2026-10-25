@@ -1,0 +1,9 @@
+{
+  "id": "spaces.settings-sections",
+  "version": 1,
+  "summary": "A Space's settings page draws the sections plugins contribute for that Space between its own rows and its deletion.",
+  "required": false,
+  "files": [
+    "CrestMac/Features/Settings/Components/BrowserSettingsSpacePage.swift"
+  ]
+}

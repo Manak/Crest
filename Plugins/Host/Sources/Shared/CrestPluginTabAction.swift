@@ -5,7 +5,7 @@ import SwiftUI
 struct CrestPluginTabAction: Identifiable {
     // MARK: - Static Variables
 
-    static let hook = CrestPluginHookPoint<CrestPluginTabAction>(id: "tabs.edit-actions", version: 1)
+    static let hook = CrestPluginHookPoint<CrestPluginTabAction>(id: "tabs.edit-actions", version: 2)
 
     // MARK: - Variables
 
@@ -14,6 +14,37 @@ struct CrestPluginTabAction: Identifiable {
     let systemImage: String
     let isAvailable: @MainActor (TabStateModel) -> Bool
     let perform: @MainActor (CrestPluginTabActionContext) -> Void
+}
+
+/// Menu items a plugin adds to a tab's context menu itself, above Edit Tab:
+/// a button, a submenu of choices, a toggle per Space, whatever the plugin's
+/// behavior calls for. The content is drawn with the menu and gets the same
+/// context an action does. Items that need the tab to be shown in its window
+/// guard with `context.browser` as the menu's own buttons do.
+struct CrestPluginTabMenuItems: Identifiable {
+    // MARK: - Static Variables
+
+    static let hook = CrestPluginHookPoint<CrestPluginTabMenuItems>(id: "tabs.edit-actions", version: 2)
+
+    // MARK: - Variables
+
+    let id: String
+    let isAvailable: @MainActor (TabStateModel) -> Bool
+    let content: @MainActor (CrestPluginTabActionContext) -> CrestPluginView
+}
+
+/// Every active plugin's menu items for `tab`, each followed by a divider.
+struct CrestPluginTabMenuContent: View {
+    let context: CrestPluginTabActionContext
+
+    @Environment(\.crestPluginHooks) private var hooks
+
+    var body: some View {
+        ForEach(hooks.contributions(at: CrestPluginTabMenuItems.hook).filter { $0.isAvailable(context.tab) }) { items in
+            items.content(context)
+            Divider()
+        }
+    }
 }
 
 /// What a tab action works with: the tab and where it lives, the window's

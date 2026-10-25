@@ -1,0 +1,9 @@
+{
+  "id": "settings.sections",
+  "version": 1,
+  "summary": "Every Mac settings pane draws the sections plugins contribute for its destination after its own.",
+  "required": false,
+  "files": [
+    "CrestMac/Features/Settings/Components/BrowserPlatformSettingsPaneContainer.swift"
+  ]
+}

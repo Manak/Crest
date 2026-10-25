@@ -1,0 +1,11 @@
+{
+  "id": "chrome.slots",
+  "version": 1,
+  "summary": "Named slots in the window's chrome where plugins put views: under the address field, above and below a Space's pinned tabs, under its tab list, and across the top of a page.",
+  "required": false,
+  "files": [
+    "CrestMac/Features/Sidebar/BrowserSidebar/Components/BrowserSidebarLoadedContent/SidebarChrome.swift",
+    "CrestMac/Features/Sidebar/BrowserSidebar/Components/SpaceSidebarContent/SpaceSidebarBrowsingContent.swift",
+    "CrestMac/Features/Browser/Components/BrowserWebContentView.swift"
+  ]
+}

@@ -2,8 +2,9 @@ import Foundation
 import Observation
 
 /// Runs the plugins a build was made with: reads what the build recorded
-/// about them, keeps each one's switch, turns the enabled ones on at launch
-/// and hands their contributions to the seams through `hooks`.
+/// about them, keeps each one's switch and storage, turns the enabled ones on
+/// at launch, watches the session for them, and hands their contributions to
+/// the seams through `hooks`.
 @MainActor
 @Observable
 final class CrestPluginHost {
@@ -32,7 +33,9 @@ final class CrestPluginHost {
     @ObservationIgnored private let defaults: UserDefaults?
     @ObservationIgnored private let types: [String: any CrestPlugin.Type]
     @ObservationIgnored private var instances: [String: any CrestPlugin] = [:]
+    @ObservationIgnored private var storages: [String: CrestPluginStorage] = [:]
     @ObservationIgnored private var context: CrestPluginContext?
+    @ObservationIgnored private var watcher: CrestPluginSpaceWatcher?
 
     var hooks: CrestPluginHooks { CrestPluginHooks(contributions: contributions) }
 
@@ -74,7 +77,8 @@ final class CrestPluginHost {
         CrestPluginHooks.installed = hooks
         // The stores every activation shares, kept for the switches moved later.
         let context = CrestPluginContext(
-            pluginID: "", browser: browser, privateBrowser: privateBrowser, core: core, defaults: defaults,
+            pluginID: "", browser: browser, privateBrowser: privateBrowser, core: core,
+            storage: CrestPluginStorage(pluginID: "", fileURL: nil), defaults: defaults,
             launchEnvironment: launchEnvironment, contributions: contributions)
         self.context = context
         guard !launchEnvironment.isXCTestRuntime else { return }
@@ -83,6 +87,31 @@ final class CrestPluginHost {
             guard record.manifest.available, record.isEnabled else { continue }
             records[index].state = activate(record.manifest, context: context)
         }
+        let watcher = CrestPluginSpaceWatcher(browser: browser, contributions: contributions) { [weak self] spaceID in
+            self?.forgetSpace(spaceID)
+        }
+        self.watcher = watcher
+        watcher.start()
+    }
+
+    // MARK: - Actions - Storage
+
+    /// The storage of `pluginID`, made on first use for this launch. A plugin
+    /// that is off keeps its storage; turning it on finds it again.
+    func storage(for pluginID: String) -> CrestPluginStorage {
+        if let storage = storages[pluginID] { return storage }
+        let storage =
+            context.map { CrestPluginStorage.forLaunch($0.launchEnvironment, pluginID: pluginID) }
+            ?? CrestPluginStorage(pluginID: pluginID, fileURL: nil)
+        storages[pluginID] = storage
+        return storage
+    }
+
+    /// Drops what every plugin stored for a Space that is gone.
+    private func forgetSpace(_ spaceID: UUID) {
+        for record in records {
+            storage(for: record.id).forgetSpace(spaceID)
+        }
     }
 
     // MARK: - Actions - Activation
@@ -90,8 +119,8 @@ final class CrestPluginHost {
     private func activate(_ plugin: CrestPluginsManifest.Plugin, context: CrestPluginContext) -> CrestPluginState {
         let context = CrestPluginContext(
             pluginID: plugin.id, browser: context.browser, privateBrowser: context.privateBrowser,
-            core: context.core, defaults: context.defaults, launchEnvironment: context.launchEnvironment,
-            contributions: contributions)
+            core: context.core, storage: storage(for: plugin.id), defaults: context.defaults,
+            launchEnvironment: context.launchEnvironment, contributions: contributions)
         if let type = types[plugin.id] {
             let instance = type.init()
             do {

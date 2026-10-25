@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 2,
+  "entries": {
+    "shared-pinned-tabs-1-0-0": {
+      "category": "new",
+      "message": "Right-click a pinned tab and choose Share in Spaces to pin it in other Spaces too. The copies open signed in as the home Space is, follow the home tab's address, name and icon, and go when the home tab is unpinned."
+    }
+  }
+}

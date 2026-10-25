@@ -1,0 +1,7 @@
+{
+  "id": "plugins.settings",
+  "version": 1,
+  "summary": "Settings → Crest Plugins shows the rows a plugin contributes under its own switch. Host-only: patches nothing.",
+  "required": false,
+  "files": []
+}

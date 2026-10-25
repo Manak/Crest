@@ -1,5 +1,5 @@
 diff --git a/CrestShared/Features/Settings/Models/BrowserSettingsDestination.swift b/CrestShared/Features/Settings/Models/BrowserSettingsDestination.swift
-index b8c97f3e..b7acd0eb 100644
+index b8c97f3e..e12622e8 100644
 --- a/CrestShared/Features/Settings/Models/BrowserSettingsDestination.swift
 +++ b/CrestShared/Features/Settings/Models/BrowserSettingsDestination.swift
 @@ -33,6 +33,7 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
@@ -15,8 +15,8 @@ index b8c97f3e..b7acd0eb 100644
              "agents AI MCP model context protocol coding agents scripts automation Claude Codex Cursor command line terminal",
          symbol: "sparkles", tincture: .meadowForest)
 +    static let plugins = BrowserSettingsDestination(
-+        kind: .plugins, name: "plugins", title: "Plugins", subtitle: "Personal additions",
-+        searchTerms: "plugins additions hooks fork personal build host versions",
++        kind: .plugins, name: "plugins", title: "Crest Plugins", subtitle: "Personal additions and their settings",
++        searchTerms: "plugins additions hooks fork personal build host versions storage",
 +        symbol: "puzzlepiece", tincture: .ironPewter)
      static let about = BrowserSettingsDestination(
          kind: .about, name: "about", title: "About", subtitle: "Version, updates, and support",

@@ -1,0 +1,12 @@
+diff --git a/CrestMac/Features/Settings/Components/BrowserSettingsSpacePage.swift b/CrestMac/Features/Settings/Components/BrowserSettingsSpacePage.swift
+index 5621082d..41c732a8 100644
+--- a/CrestMac/Features/Settings/Components/BrowserSettingsSpacePage.swift
++++ b/CrestMac/Features/Settings/Components/BrowserSettingsSpacePage.swift
+@@ -157,6 +157,7 @@ struct BrowserSettingsSpacePage: View {
+         BrowserSettingsPane(.spaces) {
+             BrowserSpaceBrowsingSection(browser: browser, space: space)
+             BrowserSpaceDownloadsSection(settings: downloads.settings(for: space))
++            CrestPluginSpaceSettingsSections(space: space, browser: browser)
+             BrowserSpaceDeletionSection(browser: browser, spaceID: space.id, dataDeleter: dataDeleter)
+         }
+         .task(id: space.id) { downloads.refresh(for: space.id) }

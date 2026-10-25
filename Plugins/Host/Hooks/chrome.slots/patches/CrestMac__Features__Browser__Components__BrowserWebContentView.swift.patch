@@ -1,0 +1,14 @@
+diff --git a/CrestMac/Features/Browser/Components/BrowserWebContentView.swift b/CrestMac/Features/Browser/Components/BrowserWebContentView.swift
+index 22676889..b5086c0b 100644
+--- a/CrestMac/Features/Browser/Components/BrowserWebContentView.swift
++++ b/CrestMac/Features/Browser/Components/BrowserWebContentView.swift
+@@ -48,6 +48,9 @@ struct BrowserWebContentView: View {
+                         permissionCenter: pages.permissionCenter
+                     )
+                 }
++                if isShownPage {
++                    CrestPluginChromeSlotStack(slot: .pageTop, browser: browser, space: browser.shownSpace, page: page)
++                }
+             }
+         )
+         .modifier(

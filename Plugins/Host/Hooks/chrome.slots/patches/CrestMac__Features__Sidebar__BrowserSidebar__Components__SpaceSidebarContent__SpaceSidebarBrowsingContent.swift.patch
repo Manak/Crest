@@ -1,0 +1,28 @@
+diff --git a/CrestMac/Features/Sidebar/BrowserSidebar/Components/SpaceSidebarContent/SpaceSidebarBrowsingContent.swift b/CrestMac/Features/Sidebar/BrowserSidebar/Components/SpaceSidebarContent/SpaceSidebarBrowsingContent.swift
+index 2a87f0a9..acec5478 100644
+--- a/CrestMac/Features/Sidebar/BrowserSidebar/Components/SpaceSidebarContent/SpaceSidebarBrowsingContent.swift
++++ b/CrestMac/Features/Sidebar/BrowserSidebar/Components/SpaceSidebarContent/SpaceSidebarBrowsingContent.swift
+@@ -37,6 +37,7 @@ struct SpaceSidebarBrowsingContent: View {
+     @ViewBuilder
+     private func content(_ listContext: BrowserSidebarListContext) -> some View {
+         let hasPinnedTabs = !listContext.space.sidebar.section(.pinned).isEmpty
++        CrestPluginChromeSlotStack(slot: .spaceAbovePinned, browser: browser, space: space)
+         BrowserPinnedTabsDropSection(context: listContext)
+             .equatable()
+             .padding(.horizontal, BrowserSidebarMetrics.layerInset)
+@@ -44,6 +45,7 @@ struct SpaceSidebarBrowsingContent: View {
+             // extension strip above rather than holding space of its own.
+             .padding(.top, hasPinnedTabs ? BrowserSidebarMetrics.topSectionSpacing : 0)
+             .padding(.bottom, hasPinnedTabs ? BrowserSidebarMetrics.pinnedTabsBottomInset : 0)
++        CrestPluginChromeSlotStack(slot: .spaceBelowPinned, browser: browser, space: space)
+ 
+         BrowserSpaceHeader(
+             space: space,
+@@ -96,6 +98,7 @@ struct SpaceSidebarBrowsingContent: View {
+             browser.tabMultiSelection.message = nil
+             BrowserNoticeCenter.shared.post(BrowserNotice(message: message, systemImage: "exclamationmark.triangle"))
+         }
++        CrestPluginChromeSlotStack(slot: .spaceBottom, browser: browser, space: space)
+     }
+ 
+     /// The Space and this window as the read model keeps them, and what the
