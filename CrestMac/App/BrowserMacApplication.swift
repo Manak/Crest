@@ -268,7 +268,8 @@ final class BrowserMacApplication {
         )
         self.transientBrowsing = transientBrowsing
         self.windowCoordinator = BrowserMacWindowCoordinator(
-            browser: browser, pages: pages, spaceAccess: spaceAccess, windowLayouts: windowLayouts)
+            browser: browser, pages: pages, spaceAccess: spaceAccess, windowLayouts: windowLayouts,
+            utilityDefaults: utilityDefaults)
         self.privateBrowser = privateBrowser
         self.privateChrome = BrowserChromeState(
             utilityPresentation: BrowserUtilityPresentationState(
