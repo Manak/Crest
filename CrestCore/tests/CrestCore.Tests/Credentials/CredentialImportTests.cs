@@ -73,6 +73,26 @@ public sealed class CredentialImportTests {
     }
 
     [Fact]
+    public void ABracketedHostMustBeAnIPv6AddressWithoutAZoneId() {
+        var plan = Preview("""
+            url,username,password
+            https://[2001:DB8::1]:8443/,u,s
+            https://[a b]/,u,s
+            https://[a%2Fb]/,u,s
+            https://[%5B::1%5D]/,u,s
+            https://[1.2.3.4]/,u,s
+            https://[v1.x]/,u,s
+            https://[:::]/,u,s
+            https://[fe80::1%25en0]/,u,s
+            https://[fe80::1%41]/,u,s
+            """);
+        Assert.Equal(new CredentialOrigin("https", "2001:db8::1", 8443), Assert.Single(plan.Groups).Origin);
+        Assert.Equal(Enumerable.Range(3, 8).Select(row => new CredentialRowRejection(row, CredentialRowFlaw.InvalidOrigin)), plan.Rejections);
+        // A page never reports a zone ID, so a saved password cannot hold one either.
+        Assert.False(new CredentialOrigin("https", "fe80::1%en0", 443).IsValid);
+    }
+
+    [Fact]
     public void AnAccountsRowsGroupAgainstItsMostRecentSavedPassword() {
         var older = Saved("ADA", "old-secret", updatedAt: 3_000);
         var newer = Saved("ada", "current-secret", updatedAt: 1_000, lastUsedAt: 5_000);

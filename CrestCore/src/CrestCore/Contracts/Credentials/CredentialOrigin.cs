@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Sockets;
+
 namespace CrestCore.Contracts;
 
 /// The canonical HTTP(S) origin a credential belongs to. The platform
@@ -9,8 +12,10 @@ public sealed record CredentialOrigin(string Scheme, string Host, int Port) {
 
     public const int MaximumHostLength = 1_024;
 
+    /// A host with a colon must be a plain IPv6 address: a page's origin never
+    /// holds a zone ID, brackets or escapes.
     public bool IsValid => WebScheme.Named(Scheme) is not null && !string.IsNullOrEmpty(Host) && Host.Length <= MaximumHostLength
-        && Port is >= 1 and <= 65_535;
+        && (!Host.Contains(':', StringComparison.Ordinal) || IsIPv6Address(Host)) && Port is >= 1 and <= 65_535;
 
     public bool IsSecure => WebScheme.Named(Scheme)?.IsSecure == true;
 
@@ -37,6 +42,15 @@ public sealed record CredentialOrigin(string Scheme, string Host, int Port) {
 
     /// This origin, or the refusal of one that is not `IsValid`.
     internal CredentialOrigin Validated() => IsValid ? this : throw new Rejected(new InvalidCredentialOrigin());
+
+    #endregion
+
+    #region Actions - Host
+
+    /// `IPAddress.TryParse` alone also takes brackets and a zone ID.
+    private static bool IsIPv6Address(string host) =>
+        host.All(character => char.IsAsciiHexDigit(character) || character is ':' or '.')
+        && IPAddress.TryParse(host, out var address) && address.AddressFamily == AddressFamily.InterNetworkV6;
 
     #endregion
 }
