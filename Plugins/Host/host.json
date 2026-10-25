@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "hookCatalogVersion": 2,
+  "hookCatalogVersion": 3,
   "hooks": [
     "bootstrap",
     "plugins.settings",

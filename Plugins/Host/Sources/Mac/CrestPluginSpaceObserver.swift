@@ -2,14 +2,15 @@ import Foundation
 import Observation
 
 /// What a plugin hears about the Spaces of the browsing session: Spaces
-/// appearing and going, the window's shown Space moving, and any change to
-/// the session's tabs. Every closure is optional; a plugin fills the ones it
-/// acts on. The host calls them on the main actor after the read model has
-/// taken the change, so what a closure reads from the stores is current.
+/// appearing and going, the window's shown Space moving, any change to the
+/// session's tabs, and the tabs' pages opening and going. Every closure is
+/// optional; a plugin fills the ones it acts on. The host calls them on the
+/// main actor after the read model has taken the change, so what a closure
+/// reads from the stores is current.
 struct CrestPluginSpaceObserver: Identifiable {
     // MARK: - Static Variables
 
-    static let hook = CrestPluginHookPoint<CrestPluginSpaceObserver>(id: "spaces.lifecycle", version: 1)
+    static let hook = CrestPluginHookPoint<CrestPluginSpaceObserver>(id: "spaces.lifecycle", version: 2)
 
     // MARK: - Variables
 
@@ -26,12 +27,16 @@ struct CrestPluginSpaceObserver: Identifiable {
     /// The session changed in any way: a tab opened, moved, renamed or
     /// closed, a Space renamed. Reported once per core batch.
     var sessionChanged: (@MainActor () -> Void)? = nil
+    /// The tabs with a page changed: a tab's page opened in some window of
+    /// either browsing mode, or went, unloaded, put away or closed. Reported
+    /// once per core batch; a page's own navigation is not reported.
+    var pagesChanged: (@MainActor () -> Void)? = nil
 }
 
 /// Watches the browsing session on the host's behalf and reports to every
-/// active observer: which Spaces came and went, which the window shows, and
-/// each revision of the session. Re-arms its observation after every change,
-/// as Crest's own services do.
+/// active observer: which Spaces came and went, which the window shows, each
+/// revision of the session, and which tabs have a page. Re-arms its
+/// observation after every change, as Crest's own services do.
 @MainActor
 final class CrestPluginSpaceWatcher {
     // MARK: - Variables
@@ -43,6 +48,7 @@ final class CrestPluginSpaceWatcher {
     private var knownSpaceIDs: [UUID]
     private var shownSpaceID: UUID?
     private var sessionRevision: BrowserSessionRevision
+    private var pagedTabIDs: Set<UUID>
     private var stopped = false
 
     // MARK: - Initializers
@@ -57,6 +63,7 @@ final class CrestPluginSpaceWatcher {
         knownSpaceIDs = browser.spaceModels.map(\.id)
         shownSpaceID = browser.shownSpace?.id
         sessionRevision = browser.sessionRevision
+        pagedTabIDs = Self.pagedTabIDs(in: browser)
     }
 
     // MARK: - Actions - Watching
@@ -71,17 +78,27 @@ final class CrestPluginSpaceWatcher {
 
     private func follow() {
         guard !stopped else { return }
-        // Only the three readings are tracked; what an observer reads while it
+        // Only the four readings are tracked; what an observer reads while it
         // acts on them is its own, so a report never re-arms itself.
-        let (spaceIDs, shownSpaceID, revision) = withObservationTracking {
-            (browser.spaceModels.map(\.id), browser.shownSpace?.id, browser.sessionRevision)
+        let (spaceIDs, shownSpaceID, revision, pagedTabIDs) = withObservationTracking {
+            (
+                browser.spaceModels.map(\.id), browser.shownSpace?.id, browser.sessionRevision,
+                Self.pagedTabIDs(in: browser)
+            )
         } onChange: { [weak self] in
             Task { @MainActor in self?.follow() }
         }
-        report(spaceIDs: spaceIDs, shownSpaceID: shownSpaceID, revision: revision)
+        report(spaceIDs: spaceIDs, shownSpaceID: shownSpaceID, revision: revision, pagedTabIDs: pagedTabIDs)
     }
 
-    private func report(spaceIDs: [UUID], shownSpaceID: UUID?, revision: BrowserSessionRevision) {
+    /// Every tab with a page, in any window of either browsing mode.
+    private static func pagedTabIDs(in browser: BrowserStore) -> Set<UUID> {
+        Set(browser.core.state.pages.values.compactMap(\.tabID))
+    }
+
+    private func report(
+        spaceIDs: [UUID], shownSpaceID: UUID?, revision: BrowserSessionRevision, pagedTabIDs: Set<UUID>
+    ) {
         let observers = contributions.contributions(at: CrestPluginSpaceObserver.hook)
         let known = Set(knownSpaceIDs)
         let current = Set(spaceIDs)
@@ -103,6 +120,10 @@ final class CrestPluginSpaceWatcher {
         if revision != sessionRevision {
             sessionRevision = revision
             for observer in observers { observer.sessionChanged?() }
+        }
+        if pagedTabIDs != self.pagedTabIDs {
+            self.pagedTabIDs = pagedTabIDs
+            for observer in observers { observer.pagesChanged?() }
         }
     }
 }

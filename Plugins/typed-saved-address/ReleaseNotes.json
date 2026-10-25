@@ -4,6 +4,10 @@
     "saved-tab-edit-url": {
       "category": "new",
       "message": "Edit Tab offers Edit URL… for saved and pinned tabs, so you can type the address a tab belongs to instead of replacing it with the page it is showing."
+    },
+    "typed-saved-address-1-1-0": {
+      "category": "new",
+      "message": "Pinned tabs reopen at their saved URL, like pinned links: at launch and after a pinned tab's page is unloaded or closed it comes back at the address you saved, not the page it showed last. Browsing in an open pinned tab is unchanged, and Settings → Crest Plugins can turn this off."
     }
   }
 }

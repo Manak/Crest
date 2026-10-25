@@ -320,16 +320,19 @@ The rows a plugin shows under its own switch in Settings → Crest Plugins. The
 view is rows of a grouped form: toggles, pickers, text, buttons; it joins the
 plugin's section, so it has no `Section` of its own. Live toggle.
 
-### `spaces.lifecycle` (v1, host-only)
+### `spaces.lifecycle` (v2, host-only)
 
-Contribution `CrestPluginSpaceObserver`: `id` and four optional closures,
+Contribution `CrestPluginSpaceObserver`: `id` and five optional closures,
 `spacesAdded([SpaceModel])`, `spacesRemoved([UUID])`,
-`shownSpaceChanged(SpaceModel?)`, `sessionChanged()`. The host watches
-`browser` (not private browsing) and calls them on the main actor after the
-read model has taken the change. `spacesRemoved` runs after every plugin's
-storage has forgotten the Space. `sessionChanged` runs once per core batch
-that changed the session: a tab opened, moved, renamed, closed, a Space
-renamed. Live toggle.
+`shownSpaceChanged(SpaceModel?)`, `sessionChanged()`, `pagesChanged()`. The
+host watches `browser` (not private browsing) and calls them on the main actor
+after the read model has taken the change. `spacesRemoved` runs after every
+plugin's storage has forgotten the Space. `sessionChanged` runs once per core
+batch that changed the session: a tab opened, moved, renamed, closed, a Space
+renamed. `pagesChanged` (v2) runs once per core batch that changed which tabs
+have a page, in any window of either browsing mode: a page opened for a tab,
+or a tab's page was unloaded, put away or closed; a page's navigation is not
+reported. Live toggle.
 
 ### `settings.sections` (v1)
 

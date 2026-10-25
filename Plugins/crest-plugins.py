@@ -945,14 +945,14 @@ def command_bump(arguments: argparse.Namespace) -> int:
     manifest_path = plugin.directory / "plugin.json"
     manifest = read_json(manifest_path)
     manifest["version"] = version
-    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     notes_path = plugin.directory / "ReleaseNotes.json"
     notes = read_json(notes_path) if notes_path.is_file() else {"schemaVersion": 2, "entries": {}}
     entry_id = arguments.entry_id or f"{plugin.id}-{version.replace('.', '-')}"
     if entry_id in notes["entries"]:
         raise PluginError(f"release note {entry_id!r} exists; pass --entry-id")
     notes["entries"][entry_id] = {"category": arguments.category, "message": arguments.note}
-    notes_path.write_text(json.dumps(notes, indent=2) + "\n")
+    notes_path.write_text(json.dumps(notes, indent=2, ensure_ascii=False) + "\n")
     print(f"{plugin.id} is now {version}; release note {entry_id} added.")
     return 0
 
