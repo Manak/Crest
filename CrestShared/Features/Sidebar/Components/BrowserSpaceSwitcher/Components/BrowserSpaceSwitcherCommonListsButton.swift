@@ -20,7 +20,7 @@ struct BrowserSpaceSwitcherCommonListsButton: View {
     #endif
 
     var body: some View {
-        Button("Common Lists", systemImage: surface.systemImage, action: action)
+        Button("Common Lists", systemImage: openedSurface.systemImage, action: action)
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .frame(
@@ -71,6 +71,12 @@ struct BrowserSpaceSwitcherCommonListsButton: View {
             } action: { frame in
                 recordFrame(frame)
             }
+    }
+
+    /// The list a press opens now: unseen finished downloads take it to
+    /// Downloads, whatever list was chosen, and the symbol says so.
+    private var openedSurface: BrowserUtilitySurface {
+        newDownloads.isEmpty ? surface : .downloads
     }
 
     private var accessibilityValue: String {
