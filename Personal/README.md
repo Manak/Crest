@@ -150,6 +150,14 @@ it brings titles but not icons. `Personal/bin/arc-icons-to-crest.py` (same
 address, then title, and copies Arc's cached icon into Crest's favicon store
 for tabs that have none; `--replace` overwrites the ones Crest already has.
 
+`Personal/bin/arc-colors-to-crest.py` (same `--dry-run` and `--map` flags)
+gives each Crest Space the colors of the Arc Space of the same name, read the
+way Crest's own Arc import reads them, and the accent nearest the first color.
+It keeps the Space's banner pattern, strength, texture, crest and icon;
+`--arc-look` also sets half strength, no readability fade and text that
+follows the system appearance, so the sidebar looks as it did in Arc. It
+backs up the session store under `~/Library/Caches/Crest-local-release/color-backups/`.
+
 ## Making your own changes
 
 Work on `mine` (or on a feature branch off `mine`, merged back into `mine`).
