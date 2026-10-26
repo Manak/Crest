@@ -4541,6 +4541,54 @@
     "imported-ip-address-passwords-fill": {
       "category": "fixed",
       "message": "Imported passwords for sites at an IP address written in a long or unusual form, such as 127.1, now fill on that site and merge with passwords already saved for it."
+    },
+    "find-shift-return-previous-match": {
+      "category": "fixed",
+      "message": "Pressing Shift-Return in Find moves to the previous match."
+    },
+    "toggle-command-bar-shortcut": {
+      "category": "improved",
+      "message": "Pressing Command-T while the command bar is open closes it."
+    },
+    "keyboard-tab-keeps-the-space-on-ipad": {
+      "category": "fixed",
+      "message": "On iPad with a keyboard, pressing Tab in a webpage's form no longer switches to another Space."
+    },
+    "floating-sidebar-exit-margin": {
+      "category": "improved",
+      "message": "The floating sidebar stays open when the pointer drifts just past its edge, and hides once the pointer moves further into the page."
+    },
+    "quick-window-space-switcher": {
+      "category": "new",
+      "message": "Click the Space in a Quick Window’s address bar to switch Spaces. The page reloads in the Space you choose, with that Space’s cookies and passwords, and Crest remembers the choice for that site."
+    },
+    "quick-window-address-drag-selects-text": {
+      "category": "fixed",
+      "message": "Dragging across a Quick Window’s address field selects its text instead of moving the window. The space around the field still moves the window."
+    },
+    "downloads-drag-out-as-files": {
+      "category": "new",
+      "message": "Finished downloads can be dragged out of the Downloads list and dropped into Finder or another app, like any file."
+    },
+    "sidebar-lists-button-choice": {
+      "category": "new",
+      "message": "Right-click the lists button at the bottom of the sidebar to choose whether it opens Archive, History or Downloads in the Space you are in."
+    },
+    "start-page-command-t-focus": {
+      "category": "fixed",
+      "message": "On a Start Page, Command-T closes an open command bar and puts the cursor back in the Start Page field."
+    },
+    "clear-one-site-cookies-or-cache": {
+      "category": "new",
+      "message": "Site Controls can clear the open site's cookies or its cache. Clearing cookies signs you out of the site and removes everything it stored in that Space, including service workers and what sites embedded in it stored there. Both are also in the command palette and, on iPhone and iPad, the page menu."
+    },
+    "space-website-data-settings": {
+      "category": "new",
+      "message": "Each Space's Privacy settings list the sites that keep data, with Remove and Remove All, and can clear history, cookies and site data, and cached files from the last hour up to all time."
+    },
+    "website-data-locked-space-guard": {
+      "category": "internal",
+      "message": "Listing or clearing a locked Space's website data is refused until it is unlocked, Remove All clears every site's data in the Space, and the site commands on iPhone and iPad need a page that shows a site."
     }
   }
 }
