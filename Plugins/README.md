@@ -45,7 +45,7 @@ Plugins have versions and release notes of their own. Crest's
   turned on. `Plugins/<id>/`.
 - A **contribution** is a typed value the host passes from the plugin to the
   seam: a menu action, a settings section, a view for a slot, a Space
-  observer, a row decoration, a wheel reading, an update provider.
+  observer, a wheel reading, an update provider.
 - The **host** (`Host/Sources`) runs the plugins: it reads what the build
   recorded about them, keeps each one's switch and storage, activates the
   enabled ones, watches the session for them, and hands their contributions to
@@ -388,12 +388,6 @@ shows a one-field alert on the row or tile and calls `commit` with the text.
 Patches `BrowserTabEditActions`, `BrowserTabOrganizationMenuContent`,
 `BrowserSidebarTabRow`, `PinnedTabGridContent`. Live toggle.
 
-### `downloads.row-decoration` (v1)
-
-Contribution `CrestPluginDownloadRowDecorator`: `decorate(AnyView, DownloadState)
--> AnyView`. Every active decorator wraps a download's row in the sidebar
-lists. Patches `BrowserUtilityListRow` (one modifier line). Live toggle.
-
 ### `space-pager.wheel` (v1, single winner)
 
 Contribution `CrestPluginSpaceWheel`: `horizontalDelta(NSEvent)`, the
@@ -522,10 +516,9 @@ plugin turned off, which is the state they run in.
 
 ## Trade-offs worth knowing
 
-- `CrestPluginView` and `CrestPluginDownloadRowDecorator` erase view types
-  with `AnyView`, which the repository forbids in its own source roots. The
-  host is the one place that does it, for the few views plugins contribute;
-  none sits on a hot path.
+- `CrestPluginView` erases view types with `AnyView`, which the repository
+  forbids in its own source roots. The host is the one place that does it,
+  for the few views plugins contribute; none sits on a hot path.
 - `CrestPluginHooks.installed` is a global for code with no environment. Views
   read the environment value instead.
 - The Space watcher re-arms `withObservationTracking` over the Space list,

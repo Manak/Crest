@@ -1,9 +1,0 @@
-{
-  "schemaVersion": 2,
-  "entries": {
-    "downloads-drag-out-as-files": {
-      "category": "new",
-      "message": "Finished downloads can be dragged out of the Downloads list and dropped into Finder or another app, like any file."
-    }
-  }
-}

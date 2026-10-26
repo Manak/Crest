@@ -1,8 +1,0 @@
-{
-  "id": "downloads.row-decoration",
-  "version": 1,
-  "summary": "Plugins wrap a download's row in the sidebar lists in a modifier of their own.",
-  "files": [
-    "CrestShared/Features/Utilities/BrowserUtilityListContent/Components/BrowserUtilityListRow/BrowserUtilityListRow.swift"
-  ]
-}
