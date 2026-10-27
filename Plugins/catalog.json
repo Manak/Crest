@@ -15,6 +15,10 @@
     {
       "id": "shared-pinned-tabs",
       "enabled": true
+    },
+    {
+      "id": "downloads-progress",
+      "enabled": true
     }
   ]
 }

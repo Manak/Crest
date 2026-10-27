@@ -1,0 +1,16 @@
+{
+  "id": "downloads-progress",
+  "name": "Downloads progress",
+  "version": "1.0.0",
+  "summary": "While a download runs and the switcher's lists button opens Downloads, a small bar on the button shows how far the first download started has got.",
+  "platforms": [
+    "macOS"
+  ],
+  "hooks": {
+    "bootstrap": 1,
+    "switcher.common-lists-overlay": 1
+  },
+  "requiresRelaunch": false,
+  "enabledByDefault": true,
+  "type": "DownloadsProgressPlugin"
+}

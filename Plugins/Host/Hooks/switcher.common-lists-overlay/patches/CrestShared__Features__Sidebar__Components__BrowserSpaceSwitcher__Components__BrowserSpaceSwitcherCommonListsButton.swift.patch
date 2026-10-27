@@ -1,0 +1,25 @@
+diff --git a/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift b/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift
+index 854ca114..249e37d5 100644
+--- a/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift
++++ b/CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift
+@@ -62,6 +62,7 @@ struct BrowserSpaceSwitcherCommonListsButton: View {
+                     )
+                 }
+             }
++            .overlay(alignment: .bottom) { CrestPluginCommonListsOverlayStack(context: pluginOverlayContext) }
+             .zIndex(newDownloads.isEmpty ? 0 : 1)
+             .help("Archive, History, and Downloads")
+             .accessibilityLabel(Text(openedSurface.title))
+@@ -80,6 +81,12 @@ struct BrowserSpaceSwitcherCommonListsButton: View {
+         newDownloads.isEmpty ? surface : .downloads
+     }
+ 
++    private var pluginOverlayContext: CrestPluginCommonListsContext {
++        CrestPluginCommonListsContext(
++            chosenSurface: surface, isExpanded: isExpanded, downloads: downloads, newDownloads: newDownloads,
++            badgeColor: badgeColor)
++    }
++
+     private var accessibilityValue: String {
+         let state = isExpanded ? "Expanded" : "Collapsed"
+         guard !newDownloads.isEmpty else { return state }

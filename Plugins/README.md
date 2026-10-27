@@ -373,6 +373,17 @@ Patches `SidebarChrome`, `SpaceSidebarBrowsingContent` and
 to the design system: `crestInteractiveSurface` for rows, `CrestChromeButtonStyle`
 for glyph buttons, Crest colour tokens.
 
+### `switcher.common-lists-overlay` (v1)
+
+Contribution `CrestPluginCommonListsOverlay`: `id`,
+`make(CrestPluginCommonListsContext) -> CrestPluginView`, the context being
+the list the person chose for the Space switcher's common-lists button
+(`chosenSurface`), whether its lists are fanned out, the shown Space's
+downloads and the finished ones nobody has looked at, and the Space's accent.
+Overlays stack at the button's bottom edge in catalog order; one with nothing
+to say draws nothing. Patches `BrowserSpaceSwitcherCommonListsButton` (one
+overlay line and the context it hands over). Live toggle.
+
 ### `tabs.edit-actions` (v2)
 
 Two contributions. `CrestPluginTabAction`: `id`, `title`, `symbol`,

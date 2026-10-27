@@ -1,0 +1,9 @@
+{
+  "id": "switcher.common-lists-overlay",
+  "version": 1,
+  "summary": "The Space switcher's common-lists button draws the overlays plugins contribute over itself, given the list it opens and the Space's downloads.",
+  "required": false,
+  "files": [
+    "CrestShared/Features/Sidebar/Components/BrowserSpaceSwitcher/Components/BrowserSpaceSwitcherCommonListsButton.swift"
+  ]
+}

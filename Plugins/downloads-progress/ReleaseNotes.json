@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 2,
+  "entries": {
+    "downloads-progress-1-0-0": {
+      "category": "new",
+      "message": "While a download runs and the switcher's lists button opens Downloads, a small bar on the button shows how far the first download started has got."
+    }
+  }
+}

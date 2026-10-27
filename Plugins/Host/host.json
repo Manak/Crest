@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "hookCatalogVersion": 4,
+  "hookCatalogVersion": 5,
   "hooks": [
     "bootstrap",
     "plugins.settings",
@@ -8,6 +8,7 @@
     "settings.sections",
     "spaces.settings-sections",
     "chrome.slots",
+    "switcher.common-lists-overlay",
     "tabs.edit-actions",
     "space-pager.wheel",
     "software-updates.provider",
