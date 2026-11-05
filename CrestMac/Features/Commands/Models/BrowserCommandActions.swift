@@ -76,9 +76,12 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
         chrome.showNotice(.copied)
     }
 
+    /// Runs `command` when the window and its page allow it, putting an open
+    /// palette away first unless the command opens or closes it itself.
     func perform(_ command: ShortcutCommand) {
         guard windowAllows(command), let action = BrowserMacCommand.of(command), action.isAvailable(self, command)
         else { return }
+        if !action.managesPalette { chrome.dismissCommandPalette() }
         action.run(self, command)
     }
 
@@ -207,10 +210,15 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
         windows?.openPrivateWindow()
     }
 
-    func openQuickWindow() {
+    /// Opens a blank Quick Window in the Space this window shows, over the
+    /// window, or with `wherePersonIs`, over the window the person is in in
+    /// another app.
+    func openQuickWindow(wherePersonIs: Bool = false) {
         guard let space = browser.shownSpace else { return }
         windows?.openQuickWindow(
-            .empty(spaceAssignment: BrowserSpaceRuntimeAssignment(space: space), targetWindowID: targetWindowID))
+            .empty(
+                spaceAssignment: BrowserSpaceRuntimeAssignment(space: space), targetWindowID: targetWindowID,
+                opensWherePersonIs: wherePersonIs))
     }
 
     func closeKeyWindow() {
@@ -270,8 +278,10 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
         }
     }
 
+    /// Edits the shown tab's address, or puts the editor away when it is
+    /// already showing, as pressing its keys again does.
     func openLocation() {
-        chrome.openLocation(browser.shownTab?.url ?? "")
+        chrome.toggleLocation(browser.shownTab?.url ?? "")
     }
 
     /// Opens local documents as ordinary tabs in the Space on screen.
@@ -377,8 +387,24 @@ struct BrowserCommandActions: BrowserNumberedSelectionPerformer {
 
     // MARK: - Tabs
 
+    /// Pins or unpins the tab this window shows, and tells the person why
+    /// the core refused it, such as a full pinned section.
     func toggleSelectedTabPinned() {
-        guard let tab = browser.shownTab, browser.togglePin(tab.id) else { return }
+        guard let tab = browser.shownTab else { return }
+        do throws(Rejection) {
+            guard try browser.togglePin(tab.id) else { return }
+        } catch {
+            BrowserNoticeCenter.shared.post(.failure(error.explanation))
+            return
+        }
+        pages.select()
+    }
+
+    /// Moves the tab this window shows into Saved Tabs, or a saved one back
+    /// to Current Tabs, as the sidebar's Save and Move to Current Tabs do.
+    func toggleSelectedTabSaved() {
+        guard let tab = browser.shownTab, !tab.isStartPage else { return }
+        guard browser.moveTab(tab.id, to: tab.placement == .saved ? .current : .saved) else { return }
         pages.select()
     }
 

@@ -8,6 +8,7 @@ import SwiftUI
 /// closures that need the windowed card pool.
 struct SpaceSidebarBrowsingContent: View {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
+    @Environment(\.spaceSidebarBands) private var sidebarBands
 
     let space: SpaceModel
     let browser: BrowserStore
@@ -44,6 +45,17 @@ struct SpaceSidebarBrowsingContent: View {
             // extension strip above rather than holding space of its own.
             .padding(.top, hasPinnedTabs ? BrowserSidebarMetrics.topSectionSpacing : 0)
             .padding(.bottom, hasPinnedTabs ? BrowserSidebarMetrics.pinnedTabsBottomInset : 0)
+            // A short window takes its height from the tab list below, never
+            // from the pinned tabs, which would ride up into the address field.
+            .fixedSize(horizontal: false, vertical: true)
+            // The pager holds these and the strip above still while it slides
+            // to a Space that shows them alike.
+            .onGeometryChange(for: CGRect.self) {
+                $0.frame(in: .named(SpaceSidebarBands.page))
+            } action: {
+                sidebarBands?.record($0, for: space.id)
+            }
+            .onDisappear { sidebarBands?.forget(space.id) }
 
         BrowserSpaceHeader(
             space: space,
@@ -66,7 +78,12 @@ struct SpaceSidebarBrowsingContent: View {
                 createSubSpace: browser.isPrivateBrowsing
                     ? nil
                     : { [space = listContext.space.id] in
-                        if browser.addSubSpace(after: space) { BrowserSpaceGroupNotices.formed() }
+                        do throws(Rejection) {
+                            try browser.addSubSpace(after: space)
+                            BrowserSpaceGroupUpdateNotice.showIfDue()
+                        } catch {
+                            BrowserNoticeCenter.shared.post(.failure(error.explanation))
+                        }
                     }
             )
             .modifier(

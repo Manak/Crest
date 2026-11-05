@@ -113,9 +113,7 @@ final class MobileBrowserWindowSceneModel {
     }
 
     func sweepExpiredTabsWhileActive() async {
-        await browser.sweepExpiredBrowsingDataWhileSceneIsActive {
-            pages.downloadCenter.sweepExpiredRecords(in: browser.spaceModels)
-        }
+        await browser.sweepExpiredBrowsingDataWhileSceneIsActive()
     }
 
     func prepareForInactiveScene() {
@@ -211,6 +209,15 @@ final class MobileBrowserWindowSceneModel {
             },
             openPeek: { request in
                 privateTransientBrowsing.presentPeek(request)
+            },
+            stagePeek: { request in
+                privateTransientBrowsing.stagePeek(request)
+            },
+            commitPeek: { request in
+                privateTransientBrowsing.commitPeek(request)
+            },
+            cancelStagedPeek: { id in
+                privateTransientBrowsing.cancelStagedPeek(id: id)
             }
         )
 

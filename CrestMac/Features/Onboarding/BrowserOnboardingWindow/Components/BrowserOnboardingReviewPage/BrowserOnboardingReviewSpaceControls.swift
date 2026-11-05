@@ -24,7 +24,7 @@ struct BrowserOnboardingReviewChecklist: View {
             }
         }
         .background(
-            CrestBrandPalette.paper.opacity(0.08), in: .rect(cornerRadius: CrestRadius.card, style: .continuous)
+            CrestBrandTheme.quietFill, in: .rect(cornerRadius: CrestRadius.card, style: .continuous)
         )
         .overlay {
             RoundedRectangle(cornerRadius: CrestRadius.card, style: .continuous)
@@ -34,7 +34,7 @@ struct BrowserOnboardingReviewChecklist: View {
             if isOutOfRoom {
                 Text("No room for another Space")
                     .font(CrestTypography.sans(11, weight: .medium))
-                    .foregroundStyle(CrestBrandTheme.textDisplay.opacity(0.6))
+                    .foregroundStyle(CrestBrandTheme.textSecondary)
                     .offset(y: 22)
             }
         }
@@ -48,33 +48,43 @@ struct BrowserOnboardingReviewChecklist: View {
         BrowserOnboardingReviewRow(
             isOn: spaceInclusion, canToggle: !isOutOfRoom, accessibilityLabel: "Bring this Space"
         ) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(review.sourceSpace.settings.name)
-                    .lineLimit(1)
-                if let primary = groupPrimary {
-                    Text("Sub-Space of \(primary.sourceSpace.settings.name)")
-                        .font(CrestTypography.sans(11, weight: .medium))
-                        .foregroundStyle(CrestBrandTheme.textDisplay.opacity(0.6))
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text(review.sourceSpace.settings.name)
                         .lineLimit(1)
+                    Spacer(minLength: 8)
+                    BrowserOnboardingReviewDestinationMenu(
+                        spaces: flow.destinationSpaces,
+                        destination: destination,
+                        destinationName: flow.destinationName(for: review.destination)
+                    )
+                    .disabled(!review.isIncluded)
+                }
+                if let groupLabel {
+                    // Any Space of a group can still come in on its own.
+                    HStack(spacing: 8) {
+                        Text(groupLabel)
+                            .font(CrestTypography.sans(11, weight: .medium))
+                            .foregroundStyle(CrestBrandTheme.textSecondary)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        Button {
+                            flow.separate(review.id)
+                        } label: {
+                            Text("Separate")
+                                .font(CrestTypography.sans(12, weight: .semibold))
+                                .padding(.horizontal, 10)
+                                .frame(height: 24)
+                        }
+                        .buttonStyle(
+                            CrestChromeButtonStyle(
+                                controlSize: nil, cornerRadius: CrestRadius.compact, showsRestingFill: true)
+                        )
+                        .accessibilityIdentifier("onboarding-review-separate")
+                    }
                 }
             }
-            Spacer(minLength: 8)
-            if flow.reviewGroup(of: review).count > 1 {
-                Button("Separate") { flow.separate(review.id) }
-                    .buttonStyle(
-                        CrestChromeButtonStyle(
-                            controlSize: nil, cornerRadius: CrestRadius.compact, showsRestingFill: true)
-                    )
-                    .font(CrestTypography.sans(12, weight: .semibold))
-                    .disabled(!review.isIncluded)
-                    .accessibilityIdentifier("onboarding-review-separate")
-            }
-            BrowserOnboardingReviewDestinationMenu(
-                spaces: flow.destinationSpaces,
-                destination: destination,
-                destinationName: flow.destinationName(for: review.destination)
-            )
-            .disabled(!review.isIncluded)
+            .padding(.vertical, groupLabel == nil ? 0 : 10)
         }
     }
 
@@ -85,7 +95,7 @@ struct BrowserOnboardingReviewChecklist: View {
                 if overflowCount > 0 {
                     Text(BrowserOnboardingSummary.overflowCount(overflowCount))
                         .font(CrestTypography.sans(11, weight: .medium))
-                        .foregroundStyle(CrestBrandTheme.textDisplay.opacity(0.6))
+                        .foregroundStyle(CrestBrandTheme.textSecondary)
                 }
             }
         }
@@ -111,7 +121,7 @@ struct BrowserOnboardingReviewChecklist: View {
                         included: review.includedExtensionIDs.count, total: review.extensions.count))
                 Text(review.extensions.map(\.name).joined(separator: ", "))
                     .font(CrestTypography.sans(11, weight: .medium))
-                    .foregroundStyle(CrestBrandTheme.textDisplay.opacity(0.6))
+                    .foregroundStyle(CrestBrandTheme.textSecondary)
                     .lineLimit(1)
             }
         }
@@ -120,10 +130,20 @@ struct BrowserOnboardingReviewChecklist: View {
 
     // MARK: - Choices
 
-    /// The reviewed Space that leads the group this one comes in with, while
-    /// it is another.
-    private var groupPrimary: BrowserImportSpaceReview? {
-        flow.reviewGroup(of: review).first.flatMap { $0.id == review.id ? nil : $0 }
+    /// The group a new Space comes in with: the Space it joins as a Sub-Space,
+    /// the workspace's own or one the review brings, or the Sub-Spaces it
+    /// leads. Nil for a Space that comes in alone or joins an existing Space.
+    private var groupLabel: String? {
+        guard review.comesInNew else { return nil }
+        if let existing = review.existingGroupID {
+            return flow.destinationSpaces.first { $0.id == existing }
+                .map { String(localized: "Sub-Space of \($0.settings.name)") }
+        }
+        let group = flow.reviewGroup(of: review)
+        guard let lead = group.first, group.count > 1 else { return nil }
+        if lead.id != review.id { return String(localized: "Sub-Space of \(lead.sourceSpace.settings.name)") }
+        return group.count == 2
+            ? String(localized: "With a Sub-Space") : String(localized: "With \(group.count - 1) Sub-Spaces")
     }
 
     /// The Space would come in new, but Crest holds no more new Spaces.
@@ -198,13 +218,14 @@ private struct BrowserOnboardingReviewDestinationMenu: View {
     var body: some View {
         Menu {
             Picker("Destination Space", selection: $destination) {
-                Text("New Space").tag(BrowserImportDestination.newSpace)
+                Label("New Space", systemImage: "plus").tag(BrowserImportDestination.newSpace)
                 ForEach(spaces) { space in
                     BrowserSpaceIdentityLabel(space: space).tag(BrowserImportDestination.existing(space.id))
                 }
             }
             .pickerStyle(.inline)
             .labelsHidden()
+            .crestMenuActionLabelStyle()
         } label: {
             HStack(spacing: 6) {
                 if let space = spaces.first(where: { destination.spaceID == $0.id }) {
@@ -221,7 +242,7 @@ private struct BrowserOnboardingReviewDestinationMenu: View {
             .padding(.horizontal, 10)
             .frame(height: 28)
             .background(
-                CrestBrandPalette.paper.opacity(0.1), in: .rect(cornerRadius: CrestRadius.compact, style: .continuous)
+                CrestBrandTheme.quietFill, in: .rect(cornerRadius: CrestRadius.compact, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: CrestRadius.compact, style: .continuous)

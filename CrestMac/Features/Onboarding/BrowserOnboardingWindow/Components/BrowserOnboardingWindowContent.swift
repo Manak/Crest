@@ -43,7 +43,7 @@ struct BrowserOnboardingWindowContent: View {
                 }
                 if let failure = flow.completionFailure {
                     Text(failure)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(CrestColor.danger)
                         .padding()
                 }
             }
@@ -69,7 +69,7 @@ struct BrowserOnboardingWindowContent: View {
             if step == .manualSetup { flow.manualSetup.repairSelection($selectedManualSpaceID) }
         }
         .onDisappear(perform: flow.cancelOperations)
-        .animation(motion(CrestMotion.onboardingStep), value: flow.state)
+        .animation(motion(CrestMotion.onboardingStep), value: flow.step)
     }
 
     /// The look the stage wears behind the step: on the welcome, the

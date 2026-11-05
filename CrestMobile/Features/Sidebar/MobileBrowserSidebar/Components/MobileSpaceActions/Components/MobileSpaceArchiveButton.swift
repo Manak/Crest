@@ -15,7 +15,10 @@ struct MobileSpaceArchiveButton: View {
 
     var body: some View {
         Button(action: presentsInline ? toggleCommonLists : showArchive) {
-            MobileSpaceUtilityButtonLabel(systemImage: "archivebox")
+            MobileSpaceUtilityButtonLabel(
+                title: presentsInline ? "Archive, History, and Downloads" : "Archive",
+                systemImage: "archivebox"
+            )
         }
         .symbolVariant(
             presentsInline && commonListsAreExpanded ? .fill : .none
@@ -28,9 +31,7 @@ struct MobileSpaceArchiveButton: View {
         .modifier(
             MobileSpaceUtilityBadge(
                 count: presentsInline ? newDownloads.count : 0,
-                tint: downloads.contains(where: { $0.phase.needsAttention })
-                    ? .red
-                    : badgeColor,
+                tint: badgeColor,
                 progress: downloads.notificationProgress
             )
         )

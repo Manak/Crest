@@ -14,8 +14,8 @@ lists what each engine lacks.
 | Layer | Owns | Never owns |
 | --- | --- | --- |
 | Platform UI (SwiftUI on macOS, iOS and iPadOS; WinUI 3 on Windows later) | Views, layout, animation, hover, scroll position, window frames, sidebar width, appearance preferences, presenting the prompts the core asks for, embedding engine views | Browser state, rules, persistence, deciding what happens next |
-| `CrestCore` | Every piece of browser state and every rule: Spaces, tabs, folders, splits, history, archive, windows and what each window shows, which windows a launch reopens and where external opens land, pages and their live state, preferences, downloads, permissions, credentials policy, import and export, search and completion, the commands and how the menu bar and launcher lay them out, onboarding and setup flows, Quick Window and Peek rules, storage, sync | Rendering, input, compositing, engine handles, image bytes, OS services |
-| Engine bindings (Chromium in portable C++ with a thin shell per OS; WebKit in Swift) | Creating and closing pages, loading, engine navigation history, find, zoom, capture, printing, DevTools, extensions, network and cookie stores | Deciding browser rules; changing browser state other than by reporting events |
+| `CrestCore` | Every piece of browser state and every rule: Spaces, tabs, folders, splits, history, archive, windows and what each window shows, which windows a launch reopens and where external opens land, pages and their live state, preferences, downloads, permissions, credentials policy, extension policy (which Spaces may change or receive an extension, and which consent answers an install), import and export, search and completion, the commands and how the menu bar and launcher lay them out, onboarding and setup flows, Quick Window and Peek rules, storage, sync | Rendering, input, compositing, engine handles, image bytes, OS services |
+| Engine bindings (Chromium in portable C++ with a thin shell per OS; WebKit in Swift) | Creating and closing pages, loading, engine navigation history, find, zoom, capture, printing, DevTools, running, verifying and storing extensions, network and cookie stores | Deciding browser rules; changing browser state other than by reporting events |
 | OS services (supplied by each platform) | CloudKit transport, Keychain, authentication prompts, notification delivery, file pickers, default-browser registration, software updates | Rules; deciding when to save or sync |
 
 `CrestCore` builds as one assembly. Its contracts, domain and application are
@@ -268,9 +268,13 @@ address.
 
 ### Protected media fallback
 
-Crest's Chromium has no Widevine. WebKit plays FairPlay through the system's
-own content decryption, so a page whose video needs DRM can move to WebKit.
-Crest licenses nothing for this: it uses the platform's WebKit.
+Crest's Chromium plays Widevine once its module has downloaded, but not for
+services that require Widevine's verified media path, which only Google
+Chrome's signature carries; `ProtectedMediaService` names those, and their
+sites open in WebKit unless the person chose an engine. WebKit plays FairPlay
+through the system's own content decryption, so a page whose video needs a key
+system Chromium lacks can also move to WebKit. Crest licenses nothing for this:
+it uses the platform's WebKit.
 
 1. A page asks for a key system Chromium cannot provide. The Chromium binding
    reports `ProtectedMediaUnavailable(page, keySystem)`.

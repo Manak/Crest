@@ -28,7 +28,7 @@ enum BrowserEngineRegistration {
             .pages, .navigation, .find, .zoom, .interactionState, .pageResidency,
             .popups, .workspaceProfiles, .workspaceTransfer, .profileDeletion,
             .contentBlocking, .downloads, .permissions, .reader, .translation,
-            .selectionTranslation, .localFiles, .protectedMedia,
+            .selectionTranslation, .localFiles, .protectedMedia, .pdf, .webArchive,
         ] + desktopWebKit,
         unavailable: [.extensions],
         archiveFormat: .webArchive)
@@ -43,8 +43,10 @@ enum BrowserEngineRegistration {
     ///   incomplete.
     /// - Whole-page translation rewrites the main document through the
     ///   engine's content scripting, as WebKit's does through its own.
-    /// - Protected media is unavailable: the engine carries no Widevine, and a
-    ///   page that asks for it moves to WebKit.
+    /// - Protected media plays through Widevine once its module has downloaded.
+    ///   A page that asks for a key system the engine lacks moves to WebKit,
+    ///   and the core opens video services that refuse Chromium's Widevine
+    ///   there.
     /// - Site permission decisions reach the engine as content settings for the
     ///   page's current site; the host has no command to stop live camera,
     ///   microphone or location use directly, so revocation relies on the engine
@@ -67,7 +69,7 @@ enum BrowserEngineRegistration {
 
     private static var desktopWebKit: [EngineCapability] {
         #if os(macOS)
-            [.viewportCapture, .fullPageCapture, .pdf, .webArchive, .print, .inspector, .featureFlags, .beforeUnload]
+            [.viewportCapture, .fullPageCapture, .print, .inspector, .featureFlags, .beforeUnload]
         #else
             []
         #endif

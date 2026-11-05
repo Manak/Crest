@@ -17,6 +17,7 @@
 #include "base/uuid.h"
 #include "chrome/browser/ui/crest/crest_engine_agent.h"
 #include "chrome/browser/ui/crest/crest_engine_binding.h"
+#include "chrome/browser/ui/crest/crest_engine_browsers.h"
 #include "chrome/browser/ui/crest/crest_engine_content.h"
 #include "chrome/browser/ui/crest/crest_engine_documents.h"
 #include "chrome/browser/ui/crest/crest_engine_infobars.h"
@@ -308,6 +309,19 @@ void EnginePage::LoadPending() {
       return;
     }
   }
+  // A link whose window the core refused loads here with its own request. One
+  // stale by now is never retried as a bare address, which would replace the
+  // page's newer document and lose the link's referrer.
+  switch (binding_->LoadRefusedWindowLink(key_, EngineURL(url))) {
+    case EngineBinding::RefusedLinkLoad::kLoaded:
+      return;
+    case EngineBinding::RefusedLinkLoad::kStale:
+      expected_entry_id_.reset();
+      Interrupted();
+      return;
+    case EngineBinding::RefusedLinkLoad::kNone:
+      break;
+  }
   Navigate(url);
 }
 
@@ -379,8 +393,11 @@ bool EnginePage::RestoreNow(const std::vector<uint8_t>& state, const std::string
     return false;
   }
   auto& controller = web_contents()->GetController();
-  // Restoration is only for a new page, never a replacement of live work.
-  if (!controller.IsInitialNavigation()) {
+  // Restoration is only for a new page, never a replacement of live work. A
+  // page whose restored history never committed a document is still on its
+  // initial navigation, and restoring it again would add a second copy.
+  if (!controller.IsInitialNavigation() || controller.GetEntryCount() != 1 ||
+      !controller.GetLastCommittedEntry()->IsInitialEntry()) {
     return false;
   }
   auto iterator = base::PickleIterator::WithData(base::span(state));
@@ -541,6 +558,9 @@ void EnginePage::DidFinishNavigation(content::NavigationHandle* navigation) {
   }
   UpdateTheme();
   if (navigation->IsSameDocument()) {
+    if (media_) {
+      media_->AddressChanged();
+    }
     MovedWithinDocument(PresentedURL(committed));
   } else {
     awaits_finish_ = true;
@@ -554,6 +574,29 @@ void EnginePage::DidFinishNavigation(content::NavigationHandle* navigation) {
       .page_id = id_, .url = PresentedURL(committed), .is_loading = web_contents()->IsLoading()});
   NoteTitle();
   FinishIfLoaded();
+  StateChanged();
+}
+
+// An extension's sign-in page loads before the engine shows it in a tab, so
+// it commits before the core adopts it. The core hears that document now, as
+// it would have heard it commit. The platform, which reveals a page only once
+// it has committed and follows an adopted page only after the core adopts
+// it, hears it when it first shows the page.
+void EnginePage::AdoptCommittedDocument() {
+  content::NavigationEntry* entry =
+      web_contents() ? web_contents()->GetController().GetLastCommittedEntry() : nullptr;
+  if (!entry || entry->IsInitialEntry()) {
+    return;
+  }
+  UpdateTheme();
+  awaits_finish_ = true;
+  Committed(PresentedURL(web_contents()->GetLastCommittedURL()));
+  NoteTitle();
+  FinishIfLoaded();
+  if (!icon_) {
+    PublishIcon(entry->GetFavicon().image, entry->GetFavicon().url);
+  }
+  presents_adopted_commit_ = true;
   StateChanged();
 }
 
@@ -614,6 +657,12 @@ void EnginePage::DidGetUserInteraction(const blink::WebInputEvent& event) {
   Present(engine::PageInteracted{.page_id = id_});
 }
 
+// A click into a split's other card focuses its page without the platform
+// showing it again, and that page is now the one in use.
+void EnginePage::OnWebContentsFocused(content::RenderWidgetHost*) {
+  binding_->Browsers().Activate(web_contents());
+}
+
 // The main frame takes the bridges as soon as its document element exists;
 // frames below it once their document is parsed. The bridges' world guards
 // itself against a second setup in the same document.
@@ -667,7 +716,7 @@ void EnginePage::DidUpdateAudioMutingState(bool muted) {
 
 void EnginePage::MediaStartedPlaying(const MediaPlayerInfo& info, const content::MediaPlayerId& id) {
   if (media_) {
-    media_->PlayerStarted(id, info.has_video);
+    media_->PlayerStarted(id, info.has_video, info.has_audio);
   }
   StateChanged();
 }
@@ -679,6 +728,18 @@ void EnginePage::MediaStoppedPlaying(const MediaPlayerInfo& info,
     media_->PlayerStopped(id);
   }
   StateChanged();
+}
+
+void EnginePage::MediaMetadataChanged(const MediaPlayerInfo& info, const content::MediaPlayerId& id) {
+  if (media_) {
+    media_->PlayerChanged(id, info.has_video, info.has_audio);
+  }
+}
+
+void EnginePage::MediaDestroyed(const content::MediaPlayerId& id) {
+  if (media_) {
+    media_->PlayerDestroyed(id);
+  }
 }
 
 void EnginePage::MediaPictureInPictureChanged(bool is_picture_in_picture) {
@@ -1026,7 +1087,7 @@ engine::PageSnapshot EnginePage::Snapshot() const {
   }
   snapshot.title = Title();
   snapshot.is_loading = web_contents()->IsLoading();
-  snapshot.security = Security();
+  snapshot.security = SecurityFacts();
   snapshot.media = MediaActivity();
   return snapshot;
 }
@@ -1048,50 +1109,37 @@ std::string EnginePage::Title() const {
   return base::UTF16ToUTF8(title);
 }
 
-// The engine's own verdict on the visible document's connection. Only a
-// secure transport with no mixed content and no certificate problem is
-// secure; a page the engine flags as malicious outranks everything else, and
-// a certificate error outranks mixed content.
-engine::PageSecurity EnginePage::Security() const {
+// What the engine knows about the visible document's connection, which the
+// core judges as the page's security: the facts of its visible security
+// state, and whether the level Chromium gives it warns. Content whose own
+// certificate failed counts as the mixed content it ran or displayed.
+engine::PageSecurityFacts EnginePage::SecurityFacts() const {
   if (!web_contents()) {
-    return engine::PageSecurity::kNone;
+    return engine::PageSecurityFacts{};
   }
   const auto visible = chrome_security_state::GetVisibleSecurityState(web_contents());
-  const auto level = chrome_security_state::GetSecurityLevel(web_contents());
   if (!visible) {
-    return engine::PageSecurity::kNone;
+    return engine::PageSecurityFacts{};
   }
-  if (visible->malicious_content_status != security_state::MALICIOUS_CONTENT_STATUS_NONE) {
-    return engine::PageSecurity::kDangerous;
+  const auto level = chrome_security_state::GetSecurityLevel(web_contents());
+  engine::PageMixedContent mixed = engine::PageMixedContent::kNone;
+  if (visible->ran_mixed_content || visible->ran_content_with_cert_errors) {
+    mixed |= engine::PageMixedContent::kRan;
   }
-  if (net::IsCertStatusError(visible->cert_status)) {
-    return engine::PageSecurity::kCertificateError;
+  if (visible->displayed_mixed_content || visible->displayed_content_with_cert_errors) {
+    mixed |= engine::PageMixedContent::kDisplayed;
   }
-  // Any other failed load shows Crest's own failure view, not a connection.
-  if (visible->is_error_page) {
-    return engine::PageSecurity::kNone;
+  if (visible->contained_mixed_form) {
+    mixed |= engine::PageMixedContent::kForm;
   }
-  if (!security_state::IsSchemeCryptographic(visible->url)) {
-    return level == security_state::WARNING || level == security_state::DANGEROUS
-               ? engine::PageSecurity::kInsecure
-               : engine::PageSecurity::kNone;
-  }
-  // An HTTPS entry that has not connected yet has no connection to judge.
-  if (!visible->connection_info_initialized) {
-    return engine::PageSecurity::kNone;
-  }
-  if (level == security_state::SECURE) {
-    return engine::PageSecurity::kSecure;
-  }
-  if (visible->ran_mixed_content || visible->displayed_mixed_content || visible->contained_mixed_form ||
-      visible->ran_content_with_cert_errors || visible->displayed_content_with_cert_errors) {
-    return engine::PageSecurity::kMixedContent;
-  }
-  if (level == security_state::DANGEROUS) {
-    return engine::PageSecurity::kDangerous;
-  }
-  // A cryptographic scheme the engine still warns about, such as legacy TLS.
-  return engine::PageSecurity::kInsecure;
+  return engine::PageSecurityFacts{
+      .cryptographic_scheme = security_state::IsSchemeCryptographic(visible->url),
+      .connection_judged = visible->connection_info_initialized,
+      .certificate_error = net::IsCertStatusError(visible->cert_status),
+      .engine_warns = level == security_state::WARNING || level == security_state::DANGEROUS,
+      .mixed_content = mixed,
+      .malicious_content = visible->malicious_content_status != security_state::MALICIOUS_CONTENT_STATUS_NONE,
+      .error_page = visible->is_error_page};
 }
 
 bool EnginePage::ShowsInitialBlank(const GURL& url) const {
@@ -1327,12 +1375,20 @@ bool EnginePage::Answer(const engine::ExportPage& request) {
   return true;
 }
 
+// The page shown is the one in use, which extensions find as the active
+// tab, as is a page the platform shows again when its card takes focus.
 bool EnginePage::Answer(const engine::ShowPage&) {
   if (!web_contents()) {
     return false;
   }
   web_contents()->WasShown();
   web_contents()->Focus();
+  binding_->Browsers().Activate(web_contents());
+  if (std::exchange(presents_adopted_commit_, false)) {
+    Present(engine::PageNavigationCommitted{.page_id = id_,
+                                            .url = PresentedURL(web_contents()->GetLastCommittedURL()),
+                                            .is_loading = web_contents()->IsLoading()});
+  }
   if (media_) {
     media_->VisibilityChanged(true);
   }

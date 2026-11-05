@@ -49,10 +49,9 @@ final class MobileBrowserPageStore:
     /// Every tab whose page this scene presents now.
     var presentedTabIDsAcrossWindows: Set<UUID> { Set(presentedTabIDs) }
     var residencyRevision: Int { host.revision }
-    private(set) var urlCopyFeedbackRevision = 0
-    /// What the page's feedback capsule says last, which each new revision shows.
-    private(set) var pageFeedback = MobilePageFeedback.pageZoom("100%")
-    private(set) var pageFeedbackRevision = 0
+    /// The notice this window shows at its top, such as a zoom change or a
+    /// copied link.
+    let notices = BrowserNotices()
     let downloadCenter: BrowserDownloadCenter
     let downloadRiskConfirmation: MobileDownloadRiskConfirmationCoordinator
     /// The answers to the core's questions about this mode's downloads, which
@@ -66,6 +65,9 @@ final class MobileBrowserPageStore:
     @ObservationIgnored let linkDestinationHost: BrowserLinkDestinationHost
     @ObservationIgnored private let openModifiedLink: ModifiedLinkOpener
     @ObservationIgnored private let openPeek: (BrowserPeekRequest) -> Void
+    @ObservationIgnored private let stagePeek: ((BrowserPeekRequest) -> Void)?
+    @ObservationIgnored private let commitPeek: ((BrowserPeekRequest) -> Void)?
+    @ObservationIgnored private let cancelStagedPeek: ((UUID) -> Void)?
     @ObservationIgnored private let browsingMode: BrowserBrowsingMode
     @ObservationIgnored let usesEphemeralWebsiteDataStores: Bool
     @ObservationIgnored private let pageZoomPreferences: BrowserDefaultPageZoomStore
@@ -92,7 +94,10 @@ final class MobileBrowserPageStore:
         tabStateArchive: (any BrowserTabStateArchiving)? = nil,
         linkDestinationHost: BrowserLinkDestinationHost = .unavailable,
         openModifiedLink: @escaping ModifiedLinkOpener = { _, _, _ in nil },
-        openPeek: @escaping (BrowserPeekRequest) -> Void = { _ in }
+        openPeek: @escaping (BrowserPeekRequest) -> Void = { _ in },
+        stagePeek: ((BrowserPeekRequest) -> Void)? = nil,
+        commitPeek: ((BrowserPeekRequest) -> Void)? = nil,
+        cancelStagedPeek: ((UUID) -> Void)? = nil
     ) {
         self.browser = browser
         self.browsingMode = browsingMode
@@ -110,6 +115,9 @@ final class MobileBrowserPageStore:
         self.linkDestinationHost = linkDestinationHost
         self.openModifiedLink = openModifiedLink
         self.openPeek = openPeek
+        self.stagePeek = stagePeek
+        self.commitPeek = commitPeek
+        self.cancelStagedPeek = cancelStagedPeek
         // Windows share their browsing mode's downloads; a store made on its
         // own, such as a preview's, keeps them over its window's core.
         let downloads =
@@ -156,7 +164,10 @@ final class MobileBrowserPageStore:
             openModifiedLink: { url, spaceID, selecting in
                 browser.openModifiedLink(url, in: spaceID, selecting: selecting)
             },
-            openPeek: { request in transientBrowsing.presentPeek(request) })
+            openPeek: { request in transientBrowsing.presentPeek(request) },
+            stagePeek: { request in transientBrowsing.stagePeek(request) },
+            commitPeek: { request in transientBrowsing.commitPeek(request) },
+            cancelStagedPeek: { id in transientBrowsing.cancelStagedPeek(id: id) })
     }
 
     var activeURL: URL? { activePage?.live.displayURL }
@@ -454,7 +465,10 @@ final class MobileBrowserPageStore:
                 },
                 linkDestinationHost: linkDestinationHost,
                 openModifiedLink: openModifiedLink,
-                openPeek: openPeek
+                openPeek: openPeek,
+                stagePeek: stagePeek,
+                commitPeek: commitPeek,
+                cancelStagedPeek: cancelStagedPeek
             ))
     }
 
@@ -530,29 +544,23 @@ final class MobileBrowserPageStore:
 
     func zoomIn() {
         guard activePage?.zoomIn() == true else { return }
-        showFeedback(.pageZoom(pageZoomLabel))
+        notices.show(.pageZoom(pageZoomLabel))
     }
 
     func zoomOut() {
         guard activePage?.zoomOut() == true else { return }
-        showFeedback(.pageZoom(pageZoomLabel))
+        notices.show(.pageZoom(pageZoomLabel))
     }
 
     func resetZoom() {
         guard activePage?.resetZoom() == true else { return }
-        showFeedback(.pageZoom(pageZoomLabel))
-    }
-
-    /// Shows `feedback` in the page's capsule.
-    func showFeedback(_ feedback: MobilePageFeedback) {
-        pageFeedback = feedback
-        pageFeedbackRevision &+= 1
+        notices.show(.pageZoom(pageZoomLabel))
     }
 
     @discardableResult
     func copyPageLink() -> Bool {
         guard activePage?.copyPageLink() == true else { return false }
-        urlCopyFeedbackRevision &+= 1
+        notices.show(.urlCopied)
         return true
     }
 
@@ -655,7 +663,10 @@ final class MobileBrowserPageStore:
                 },
                 linkDestinationHost: linkDestinationHost,
                 openModifiedLink: openModifiedLink,
-                openPeek: openPeek
+                openPeek: openPeek,
+                stagePeek: stagePeek,
+                commitPeek: commitPeek,
+                cancelStagedPeek: cancelStagedPeek
             ))
     }
 

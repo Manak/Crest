@@ -142,6 +142,7 @@ internal sealed class SqliteConnection : IDisposable {
         Execute("CREATE TABLE IF NOT EXISTS device_engine (id INTEGER PRIMARY KEY CHECK (id = 0), engine TEXT NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_shortcut (command TEXT PRIMARY KEY, key TEXT, special INTEGER NOT NULL, "
             + "modifiers INTEGER NOT NULL)");
+        Execute("CREATE TABLE IF NOT EXISTS device_shortcut_preference (command TEXT PRIMARY KEY, preference TEXT NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_link (id INTEGER PRIMARY KEY CHECK (id = 0), destination TEXT NOT NULL, "
             + "destination_space TEXT, peek_modifier TEXT NOT NULL, archive_policy TEXT NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_link_behavior (name TEXT PRIMARY KEY, is_on INTEGER NOT NULL)");
@@ -156,6 +157,7 @@ internal sealed class SqliteConnection : IDisposable {
         Execute("CREATE TABLE IF NOT EXISTS device_palette (space TEXT PRIMARY KEY, document TEXT NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_search_catalog (id INTEGER PRIMARY KEY CHECK (id = 0), document TEXT NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_setup (id INTEGER PRIMARY KEY CHECK (id = 0), completed INTEGER NOT NULL)");
+        Execute("CREATE TABLE IF NOT EXISTS device_launch (id INTEGER PRIMARY KEY CHECK (id = 0), reopening_pages INTEGER NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_tab_group (id TEXT PRIMARY KEY, space TEXT NOT NULL, engine TEXT NOT NULL, "
             + "title TEXT NOT NULL, color TEXT NOT NULL, position INTEGER NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_agents (id INTEGER PRIMARY KEY CHECK (id = 0), is_on INTEGER NOT NULL, "
@@ -171,7 +173,8 @@ internal sealed class SqliteConnection : IDisposable {
         ReadLinks(), ReadSetupDraft(), ReadSetupCompleted(), ReadAdoptions(), ReadTabGroups(), ReadDefaultEngine()) {
         PaletteMemories = ReadPaletteMemories(),
         SearchCatalog = ReadSearchCatalog(),
-        Agents = ReadAgents()
+        Agents = ReadAgents(),
+        ReopeningPages = ReadReopeningPages()
     };
 
     /// The search catalog the store keeps, or null when it keeps none or it does not read.
@@ -272,7 +275,8 @@ internal sealed class SqliteConnection : IDisposable {
         return choices;
     }
 
-    /// Each command's choice: no key is a command left without one.
+    /// Each command's choices: no key is a command left without one, and a
+    /// preference this build does not know is left out.
     private ShortcutOverrides ReadShortcuts() {
         var choices = new List<KeyValuePair<string, ShortcutChord?>>();
         Rows("SELECT command, key, special, modifiers FROM device_shortcut ORDER BY command", statement => {
@@ -287,7 +291,12 @@ internal sealed class SqliteConnection : IDisposable {
             if (special ? ShortcutSpecialKey.Named(key) is null : key.Length is 0 or > ShortcutChord.MaximumCharacterLength) return;
             choices.Add(new(command, special ? ShortcutChord.Special(key, modifiers) : ShortcutChord.Character(key, modifiers)));
         });
-        return ShortcutOverrides.Restore(choices);
+        var preferences = new List<KeyValuePair<string, ShortcutPreference>>();
+        Rows("SELECT command, preference FROM device_shortcut_preference ORDER BY command", statement => {
+            if (ShortcutPreference.Named(Sqlite.ColumnText(statement, 1)) is { } preference)
+                preferences.Add(new(Sqlite.ColumnText(statement, 0), preference));
+        });
+        return ShortcutOverrides.Restore(choices, preferences);
     }
 
     /// The link preferences, each value that does not read keeping its
@@ -358,6 +367,14 @@ internal sealed class SqliteConnection : IDisposable {
         return completed;
     }
 
+    /// Whether a launch was reopening its windows' pages: not, until the store
+    /// says so.
+    private bool ReadReopeningPages() {
+        bool reopening = false;
+        Rows("SELECT reopening_pages FROM device_launch", statement => reopening = Sqlite.sqlite3_column_int(statement, 0) != 0);
+        return reopening;
+    }
+
     private HashSet<DeviceAdoption> ReadAdoptions() {
         var adoptions = new HashSet<DeviceAdoption>();
         foreach (var table in new[] { "device_marker", "device_adoption" })
@@ -385,6 +402,7 @@ internal sealed class SqliteConnection : IDisposable {
         WritePaletteMemories(records.PaletteMemories, written?.PaletteMemories);
         if (written is null || !ReferenceEquals(records.SearchCatalog, written.SearchCatalog)) WriteSearchCatalog(records.SearchCatalog);
         if (written is null || !records.Agents.Equals(written.Agents)) WriteAgents(records.Agents);
+        if (written is null || records.ReopeningPages != written.ReopeningPages) WriteReopeningPages(records.ReopeningPages);
     }
 
     /// The search catalog as its one document, or no row before it was first restored.
@@ -525,10 +543,16 @@ internal sealed class SqliteConnection : IDisposable {
             });
     }
 
-    /// Each command's choice, with the modifier mask's every bit; a command
-    /// left without a chord has no key.
+    /// Each command's choices, with the modifier mask's every bit; a command
+    /// left without a chord has no key, and a preference is kept by its name.
     private void WriteShortcuts(ShortcutOverrides shortcuts) {
         Execute("DELETE FROM device_shortcut");
+        Execute("DELETE FROM device_shortcut_preference");
+        foreach (var (command, preference) in shortcuts.Preferences)
+            Insert("INSERT INTO device_shortcut_preference(command, preference) VALUES(?,?)", statement => {
+                Bind(statement, 1, command);
+                Bind(statement, 2, preference.Name);
+            });
         foreach (var (command, chord) in shortcuts.Chords)
             Insert("INSERT INTO device_shortcut(command, key, special, modifiers) VALUES(?,?,?,?)", statement => {
                 Bind(statement, 1, command);
@@ -577,6 +601,12 @@ internal sealed class SqliteConnection : IDisposable {
         Execute("DELETE FROM device_setup_draft");
         if (draft is null) return;
         Insert("INSERT INTO device_setup_draft(id, document) VALUES(0,?)", statement => Bind(statement, 1, draft.Document));
+    }
+
+    private void WriteReopeningPages(bool reopening) {
+        Execute("DELETE FROM device_launch");
+        Insert("INSERT INTO device_launch(id, reopening_pages) VALUES(0,?)",
+            statement => Checked(Sqlite.sqlite3_bind_int64(statement, 1, reopening ? 1 : 0)));
     }
 
     private void WriteSetupCompleted(bool completed) {

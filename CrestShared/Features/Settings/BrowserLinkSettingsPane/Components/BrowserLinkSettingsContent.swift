@@ -5,6 +5,10 @@ struct BrowserLinkSettingsContent: View {
     let spaceAccess: BrowserSpaceAccessController
 
     let links: BrowserLinkPreferenceStore
+    /// Opens a sample Peek over Settings, for a shell that can show one there.
+    var testPeek: (() -> Void)? = nil
+
+    @Bindable private var appearance = BrowserDeviceAppearanceStore.shared
 
     var body: some View {
         BrowserExternalLinkDestinationSection(
@@ -21,7 +25,10 @@ struct BrowserLinkSettingsContent: View {
         BrowserPeekSettingsSection(
             automaticallyOpensPeek: automaticPeekBinding,
             clickModifier: peekClickModifierBinding,
-            dragsLinksToPeek: dragsLinksToPeekBinding
+            dragsLinksToPeek: dragsLinksToPeekBinding,
+            dimsPageBehindPeek: dimsPageBehindPeekBinding,
+            peekSize: peekSizeSetting,
+            testPeek: testPeek
         )
 
         if lockedRouteDestinationSpaces.isEmpty {
@@ -117,6 +124,26 @@ struct BrowserLinkSettingsContent: View {
     private var dragsLinksToPeekBinding: Binding<Bool>? {
         #if os(macOS)
             links.binding(.dragsLinksToPeek, reading: \.dragsLinksToPeek)
+        #else
+            nil
+        #endif
+    }
+
+    /// The dim is drawn over the Mac page only, so only the Mac offers it.
+    private var dimsPageBehindPeekBinding: Binding<Bool>? {
+        #if os(macOS)
+            links.binding(.dimsPageBehindPeek, reading: \.dimsPageBehindPeek)
+        #else
+            nil
+        #endif
+    }
+
+    /// Only the Mac's Peek floats in the room beside the sidebar, so only the
+    /// Mac sizes it.
+    private var peekSizeSetting: CrestSettingValue<Double>? {
+        #if os(macOS)
+            CrestSettingValue(
+                $appearance.peekSize, default: BrowserTransientCardArrangement.pointerCardShares.upperBound)
         #else
             nil
         #endif

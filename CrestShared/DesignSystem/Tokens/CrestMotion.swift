@@ -83,7 +83,10 @@ enum CrestMotion {
     static let boundaryShakeTransition: TimeInterval = 0.36
     /// Fading a page in where Reduce Motion stills a slide.
     static let reducedMotionFadeTransition: TimeInterval = 0.2
-    /// Presenting Peek inside a Quick Window.
+    /// Growing a held link's Peek out of the link.
+    static let peekEntranceTransition: TimeInterval = 0.28
+    /// Presenting Peek inside a Quick Window, and fading in the ground behind a
+    /// Mac Peek.
     static let quickPeekEntranceTransition: TimeInterval = 0.34
     /// Revealing initial Peek web content after its first commit.
     static let contentRevealTransition: TimeInterval = 0.12
@@ -98,6 +101,8 @@ enum CrestMotion {
     static let feedbackPresentationTransition: TimeInterval = 0.22
     /// Dismissing a Peek card back into browser chrome.
     static let peekDismissalTransition: TimeInterval = 0.22
+    /// Shrinking a Peek's card into the preview above its link menu, and back.
+    static let peekLinkMenuTransition: TimeInterval = 0.36
     /// Revealing one destination in the utility fan.
     static let utilityFanRevealTransition: TimeInterval = 0.42
     /// The complete press-and-return cycle for reload feedback.
@@ -108,15 +113,19 @@ enum CrestMotion {
     static let reloadFeedbackPhaseSeconds: TimeInterval = 0.12
 
     static var step: Animation { .snappy(duration: stepTransition) }
-    /// Uses SwiftUI's native default curve for full onboarding-step changes.
-    static var onboardingStep: Animation { .default }
-    /// Uses SwiftUI's native snappy curve for progress selection feedback.
-    static var onboardingProgress: Animation { .snappy }
+    /// Moving from one onboarding step to the next.
+    static var onboardingStep: Animation { .snappy(duration: onboardingStepTransition) }
+    static let onboardingStepTransition: TimeInterval = 0.35
+    /// Progress selection feedback, such as moving to the next reviewed Space.
+    static var onboardingProgress: Animation { .snappy(duration: stepTransition) }
     /// Uses SwiftUI's native snappy curve for onboarding presentation state.
     static var onboardingPresentation: Animation { .snappy }
-    /// The slow cross-fade between the fields the setup stage wears.
+    /// The slow cross-fade between the fields the welcome's stage drifts through.
     static var onboardingBackdrop: Animation { .easeInOut(duration: onboardingBackdropFade) }
     static let onboardingBackdropFade: TimeInterval = 1.6
+    /// The cross-fade to a field the person's choice changed.
+    static var onboardingBackdropChange: Animation { .easeInOut(duration: onboardingBackdropChangeFade) }
+    static let onboardingBackdropChangeFade: TimeInterval = 0.35
     /// How long the welcome holds each template's field before fading to the next.
     static let onboardingWelcomeHold: Duration = .seconds(7)
     static var press: Animation { .easeOut(duration: pressFeedback) }
@@ -163,6 +172,9 @@ enum CrestMotion {
     static var reducedMotionFade: Animation {
         .easeInOut(duration: reducedMotionFadeTransition)
     }
+    static var peekEntrance: Animation {
+        .spring(duration: peekEntranceTransition, bounce: 0.2)
+    }
     static var quickPeekEntrance: Animation {
         .smooth(duration: quickPeekEntranceTransition)
     }
@@ -176,6 +188,7 @@ enum CrestMotion {
         .snappy(duration: feedbackPresentationTransition)
     }
     static var peekDismissal: Animation { .snappy(duration: peekDismissalTransition) }
+    static var peekLinkMenu: Animation { .smooth(duration: peekLinkMenuTransition) }
     static var utilityFanReveal: Animation {
         .smooth(duration: utilityFanRevealTransition, extraBounce: 0.05)
     }

@@ -103,6 +103,9 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// asked for. Only an app-initiated load may reach a `file:` URL.
     @ObservationIgnored var appInitiatedURL: URL?
     @ObservationIgnored let openPeek: (BrowserPeekRequest) -> Void
+    @ObservationIgnored private let stagePeek: ((BrowserPeekRequest) -> Void)?
+    @ObservationIgnored private let commitPeek: ((BrowserPeekRequest) -> Void)?
+    @ObservationIgnored private let cancelStagedPeek: ((UUID) -> Void)?
     @ObservationIgnored var contextMenuPreviewCommit: (() -> Void)?
     @ObservationIgnored var navigationContext: BrowserPageNavigationContext?
     @ObservationIgnored var activeNavigation: WKNavigation?
@@ -125,7 +128,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         snapshot: { [weak self] pendingURL in
             self?.snapshot(pendingURL: pendingURL)
                 ?? PageSnapshot(
-                    url: nil, pendingURL: pendingURL, title: "", isLoading: false, security: PageSecurity.none,
+                    url: nil, pendingURL: pendingURL, title: "", isLoading: false, security: .unknown,
                     media: [])
         },
         history: { [weak self] in self?.pageEngine.reportedHistory })
@@ -138,6 +141,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     @ObservationIgnored private var credentialMessageProxy: BrowserScriptMessageProxy?
     @ObservationIgnored private var linkActivationMessageProxy: MobileLinkActivationScriptMessageProxy?
     @ObservationIgnored var linkActivationSourceStore = MobileLinkActivationSourceStore()
+    @ObservationIgnored let linkPeekPressCoordinator = MobileLinkPeekPressCoordinator()
     @ObservationIgnored var downloadSourceStore = BrowserDownloadSourceStore()
     @ObservationIgnored private var userActivityMessageProxy: BrowserScriptMessageProxy?
     @ObservationIgnored private var geolocationMessageProxy: BrowserScriptMessageProxy?
@@ -191,6 +195,9 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             _, _, _ in nil
         },
         openPeek: @escaping (BrowserPeekRequest) -> Void = { _ in },
+        stagePeek: ((BrowserPeekRequest) -> Void)? = nil,
+        commitPeek: ((BrowserPeekRequest) -> Void)? = nil,
+        cancelStagedPeek: ((UUID) -> Void)? = nil,
         opensExternalURL: @escaping (URL) -> Void = { UIApplication.shared.open($0) }
     ) {
         self.corePage = corePage
@@ -204,6 +211,9 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         self.linkDestinationHost = linkDestinationHost
         self.openModifiedLink = openModifiedLink
         self.openPeek = openPeek
+        self.stagePeek = stagePeek
+        self.commitPeek = commitPeek
+        self.cancelStagedPeek = cancelStagedPeek
         contentRuleSession = BrowserPageContentRuleSession(
             ruleLists: webKitPage.contentRuleLists,
             additionalRuleList: contentRuleList
@@ -277,7 +287,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
 
         super.init()
         if normalizedDefaultPageZoom != BrowserDefaultPageZoomStore.defaultLevel {
-            webView.pageZoom = normalizedDefaultPageZoom
+            webView.pageScale = normalizedDefaultPageZoom
         }
         #if DEBUG
             // iOS ships no developer tooling of its own, so an inspectable
@@ -536,10 +546,11 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         enginePage.close()
         faviconSession.stop()
         sitePermissionSession.resetMediaGrants()
-        sitePermissionRequests.setPresentationAvailable(false)
+        sitePermissionRequests.endPresentation()
         translation.reset()
         readerModeSession.invalidate()
         mediaSessionCoordinator?.prepareForRemoval()
+        linkPeekPressCoordinator.end()
         webKitPage.resetAutomaticDownloads()
         webView.stopLoading()
         webView.removeFromSuperview()
@@ -737,7 +748,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
 
     func pdfData() async throws -> Data {
         guard webView.url != nil else { throw BrowserPageExportError.pageUnavailable }
-        return try await webView.pdf(configuration: WKPDFConfiguration())
+        return try await enginePage.export(.pdf)
     }
 
     func exportPDF(to destination: MobileBrowserFileExportDestination) {
@@ -761,13 +772,10 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         }
     }
 
+    /// The page's document and resources, in the archive WebKit keeps.
     func webArchiveData() async throws -> Data {
         guard webView.url != nil else { throw BrowserPageExportError.pageUnavailable }
-        return try await withCheckedThrowingContinuation { continuation in
-            webView.createWebArchiveData { result in
-                continuation.resume(with: result)
-            }
-        }
+        return try await enginePage.export(BrowserPageArchiveFormat.webArchive.exportFormat)
     }
 
     func exportWebArchive(to destination: MobileBrowserFileExportDestination) {
@@ -1024,8 +1032,8 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     }
 
     /// What WebKit shows for the page now: the document and its title,
-    /// whether it loads, the page's
-    /// security from its secure-content flag and the trust it kept, and the
+    /// whether it loads, what it knows of the connection from its
+    /// secure-content flag and the trust it kept, and the
     /// media WebKit last said it runs.
     private func snapshot(pendingURL: String?) -> PageSnapshot {
         let overrides = serverTrustOverrides
@@ -1035,7 +1043,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             pendingURL: pendingURL,
             title: webView.title ?? "",
             isLoading: webView.isLoading,
-            security: PageSecurity(
+            security: PageSecurityFacts(
                 webKitURL: webView.url,
                 hasOnlySecureContent: webView.hasOnlySecureContent,
                 serverTrust: webView.serverTrust,
@@ -1043,7 +1051,15 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             media: pageEngine.knownMediaActivity)
     }
 
-    private func receiveCredentialMessage(_ scriptMessage: WKScriptMessage) {
+    /// Reads what the credential bridge posted from this page's web view. A
+    /// popup shares this page's controller, so its bridge posts here too: a
+    /// message another page's web view sent goes to that page, whose own
+    /// credential session reads it and fills its own frames.
+    func receiveCredentialMessage(_ scriptMessage: WKScriptMessage) {
+        if let source = scriptMessage.webView, source !== webView {
+            webKitPage.binding?.page(showing: source)?.host?.receiveCredentialMessage(scriptMessage)
+            return
+        }
         credentialSession.receive(scriptMessage, in: webView)
     }
 
@@ -1092,6 +1108,58 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
                 destinationURL: destinationURL,
                 sourcePresentation: sourcePresentation
             )
+        }
+        guard event.phase == .began else {
+            if event.phase == .held {
+                linkPeekPressCoordinator.hold(pressID: event.pressID)
+            } else {
+                linkPeekPressCoordinator.end(pressID: event.pressID)
+            }
+            return
+        }
+        // A held press on a link opens its Peek.
+        guard let request = event.peekRequest(context: navigationContext, sourcePresentation: sourcePresentation)
+        else { return }
+        let frame = message.frameInfo
+        linkPeekPressCoordinator.begin(
+            pressID: event.pressID,
+            request: request,
+            stage: { [weak self] request in
+                guard request.sourcePresentation != nil else { return }
+                self?.stagePeek?(request)
+            },
+            commit: { [weak self] request in
+                guard let self else { return }
+                dismissLinkMenu()
+                let feedback = UIImpactFeedbackGenerator(style: .soft)
+                feedback.prepare()
+                feedback.impactOccurred(intensity: 0.82)
+                // Only a link with its place in the page grew a Peek to
+                // commit; one in a frame opens its Peek outright.
+                if request.sourcePresentation != nil, stagePeek != nil, let commitPeek {
+                    commitPeek(request)
+                } else {
+                    openPeek(request)
+                }
+            },
+            cancelStaged: { [weak self] requestID in
+                self?.cancelStagedPeek?(requestID)
+            }
+        )
+        // The page holds only a press Crest heard.
+        MobileLinkActivationContentBridge.heardPress(event.pressID, in: webView, frame: frame)
+    }
+
+    /// Closes WebKit's link preview and menu, open or about to open, for a
+    /// held link that opened Peek instead. iPadOS shows them even for a link
+    /// without its callout.
+    func dismissLinkMenu() {
+        var views: [UIView] = [webView]
+        while let view = views.popLast() {
+            for case let interaction as UIContextMenuInteraction in view.interactions {
+                interaction.dismissMenu()
+            }
+            views.append(contentsOf: view.subviews)
         }
     }
 

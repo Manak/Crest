@@ -63,6 +63,12 @@ protocol DownloadIntent: Intent {}
 /// The members of `EngineEvent` that derive from the core's `EngineDownloadEvent`.
 protocol EngineDownloadEvent: EngineEvent {}
 
+/// The members of `EngineEvent` that derive from the core's `ExtensionEvent`.
+protocol ExtensionEvent: EngineEvent {}
+
+/// The members of `Intent` that derive from the core's `ExtensionIntent`.
+protocol ExtensionIntent: Intent {}
+
 /// The members of `Intent` that derive from the core's `ImportWorkspace`.
 protocol ImportWorkspace: Intent {}
 
@@ -134,8 +140,10 @@ enum Change: Equatable, Sendable {
     case enginePreferencesChanged(EnginePreferencesChanged)
     case enginesChanged(EnginesChanged)
     case extensionInstallAsked(ExtensionInstallAsked)
+    case extensionInstallChanged(ExtensionInstallChanged)
     case foldersChanged(FoldersChanged)
     case historyChanged(HistoryChanged)
+    case installedExtensionsChanged(InstalledExtensionsChanged)
     case linkPreferencesChanged(LinkPreferencesChanged)
     case navigationRecorded(NavigationRecorded)
     case offeredPageAdopted(OfferedPageAdopted)
@@ -222,6 +230,7 @@ enum Rejection: Equatable, Error, Sendable {
     case engineAlreadyRegistered(EngineAlreadyRegistered)
     case engineLacksCapability(EngineLacksCapability)
     case engineNotRegistered(EngineNotRegistered)
+    case extensionNotChangeable(ExtensionNotChangeable)
     case fileUnreadable(FileUnreadable)
     case folderAlreadyExists(FolderAlreadyExists)
     case folderCycle(FolderCycle)
@@ -311,6 +320,7 @@ enum Rejection: Equatable, Error, Sendable {
     case spaceBeingDeleted(SpaceBeingDeleted)
     case spaceDataNotErased(SpaceDataNotErased)
     case spaceDeletionUnderway(SpaceDeletionUnderway)
+    case spaceIsPrivate(SpaceIsPrivate)
     case spaceLimitReached(SpaceLimitReached)
     case spaceLocked(SpaceLocked)
     case spaceProfileChanged(SpaceProfileChanged)
@@ -334,6 +344,7 @@ enum Rejection: Equatable, Error, Sendable {
     case unknownAgentSession(UnknownAgentSession)
     case unknownArchivedTab(UnknownArchivedTab)
     case unknownCloudMerge(UnknownCloudMerge)
+    case unknownExtension(UnknownExtension)
     case unknownFolder(UnknownFolder)
     case unknownLinkRoute(UnknownLinkRoute)
     case unknownPage(UnknownPage)
@@ -377,6 +388,7 @@ enum Rejection: Equatable, Error, Sendable {
         case .currentTabsOnly(let value): value.message
         case .duplicateSearchEngineName(let value): value.message
         case .duplicateSearchShortcut(let value): value.message
+        case .extensionNotChangeable(let value): value.message
         case .fileUnreadable(let value): value.message
         case .guideSpaceLocked(let value): value.message
         case .incompleteSplit(let value): value.message
@@ -412,6 +424,7 @@ enum Rejection: Equatable, Error, Sendable {
         case .spaceAlreadyExists(let value): value.message
         case .spaceBeingDeleted(let value): value.message
         case .spaceDeletionUnderway(let value): value.message
+        case .spaceIsPrivate(let value): value.message
         case .spaceLimitReached(let value): value.message
         case .spaceLocked(let value): value.message
         case .spaceProfileChanged(let value): value.message
@@ -419,6 +432,7 @@ enum Rejection: Equatable, Error, Sendable {
         case .splitNeedsTwoTabs(let value): value.message
         case .unknownAgentSession(let value): value.message
         case .unknownCloudMerge(let value): value.message
+        case .unknownExtension(let value): value.message
         case .unsuitableDefaultSearch(let value): value.message
         case .unsupportedArchiveVersion(let value): value.message
         case .webPagesOnly(let value): value.message
@@ -432,16 +446,21 @@ enum EngineCommand: Equatable, Sendable {
     case adoptOfferedPage(AdoptOfferedPage)
     case approveEngineDownload(ApproveEngineDownload)
     case cancelEngineDownload(CancelEngineDownload)
+    case changeEngineExtension(ChangeEngineExtension)
     case checkBeforeUnload(CheckBeforeUnload)
     case closePage(ClosePage)
     case createPage(CreatePage)
+    case downloadExtension(DownloadExtension)
     case dropStagedLink(DropStagedLink)
+    case endExtensionInstall(EndExtensionInstall)
     case eraseBrowsingData(EraseBrowsingData)
     case eraseProfileData(EraseProfileData)
     case eraseSiteData(EraseSiteData)
     case exitPictureInPicture(ExitPictureInPicture)
     case goToHistoryEntry(GoToHistoryEntry)
     case groupPages(GroupPages)
+    case installExtensionPackage(InstallExtensionPackage)
+    case listEngineExtensions(ListEngineExtensions)
     case loadPage(LoadPage)
     case pauseEngineDownload(PauseEngineDownload)
     case readSiteData(ReadSiteData)
@@ -463,6 +482,7 @@ enum EnginePresentation: Equatable, Sendable {
     case contentFullscreenChanged(ContentFullscreenChanged)
     case contentMessagePosted(ContentMessagePosted)
     case contentScriptEvaluated(ContentScriptEvaluated)
+    case extensionDownloadProgressed(ExtensionDownloadProgressed)
     case extensionsChanged(ExtensionsChanged)
     case findFinished(FindFinished)
     case infoBarRemoved(InfoBarRemoved)
@@ -489,7 +509,6 @@ enum EnginePresentation: Equatable, Sendable {
     case popupBlocked(PopupBlocked)
     case profileNotificationClosed(ProfileNotificationClosed)
     case profileNotificationPosted(ProfileNotificationPosted)
-    case profilePrepared(ProfilePrepared)
     case profileReleased(ProfileReleased)
     case screenCaptureAccessMissing(ScreenCaptureAccessMissing)
     case shareSourcesOffered(ShareSourcesOffered)
@@ -504,7 +523,7 @@ enum EnginePresentation: Equatable, Sendable {
     /// The `PageId` every member of the core's `EnginePagePresentation` carries, or nil for any other.
     var pageID: UUID? {
         switch self {
-        case .extensionsChanged, .profileNotificationClosed, .profileNotificationPosted, .profilePrepared, .profileReleased: nil
+        case .extensionDownloadProgressed, .extensionsChanged, .profileNotificationClosed, .profileNotificationPosted, .profileReleased: nil
         case .audioSpectrumChanged(let value): value.pageID
         case .contentFullscreenChanged(let value): value.pageID
         case .contentMessagePosted(let value): value.pageID
@@ -567,8 +586,10 @@ extension Change {
         case .enginePreferencesChanged(let change): change.apply(to: state)
         case .enginesChanged(let change): change.apply(to: state)
         case .extensionInstallAsked(let change): change.apply(to: state)
+        case .extensionInstallChanged(let change): change.apply(to: state)
         case .foldersChanged(let change): change.apply(to: state)
         case .historyChanged(let change): change.apply(to: state)
+        case .installedExtensionsChanged(let change): change.apply(to: state)
         case .linkPreferencesChanged(let change): change.apply(to: state)
         case .navigationRecorded(let change): change.apply(to: state)
         case .offeredPageAdopted(let change): change.apply(to: state)
@@ -640,8 +661,10 @@ extension Change {
         case .enginePreferencesChanged(let change): change.apply(to: core, in: &batch)
         case .enginesChanged(let change): change.apply(to: core, in: &batch)
         case .extensionInstallAsked(let change): change.apply(to: core, in: &batch)
+        case .extensionInstallChanged(let change): change.apply(to: core, in: &batch)
         case .foldersChanged(let change): change.apply(to: core, in: &batch)
         case .historyChanged(let change): change.apply(to: core, in: &batch)
+        case .installedExtensionsChanged(let change): change.apply(to: core, in: &batch)
         case .linkPreferencesChanged(let change): change.apply(to: core, in: &batch)
         case .navigationRecorded(let change): change.apply(to: core, in: &batch)
         case .offeredPageAdopted(let change): change.apply(to: core, in: &batch)
@@ -713,8 +736,10 @@ extension Change {
         case .enginePreferencesChanged(let change): change.note(in: &receipts)
         case .enginesChanged(let change): change.note(in: &receipts)
         case .extensionInstallAsked(let change): change.note(in: &receipts)
+        case .extensionInstallChanged(let change): change.note(in: &receipts)
         case .foldersChanged(let change): change.note(in: &receipts)
         case .historyChanged(let change): change.note(in: &receipts)
+        case .installedExtensionsChanged(let change): change.note(in: &receipts)
         case .linkPreferencesChanged(let change): change.note(in: &receipts)
         case .navigationRecorded(let change): change.note(in: &receipts)
         case .offeredPageAdopted(let change): change.note(in: &receipts)
@@ -1018,6 +1043,7 @@ struct AnswerExtensionInstall: Intent, PromptIntent, Equatable, Sendable {
     let promptID: UUID
     let accepted: Bool
     let withholdsSiteAccess: Bool
+    let copySpaceIDs: [UUID]
 }
 
 struct AnswerInfoBar: PageRequest, Equatable, Sendable {
@@ -1309,6 +1335,9 @@ struct BeginDownload: Intent, DownloadIntent, Equatable, Sendable {
 struct BeginImportCommit: Intent, SetupFlowIntent, Equatable, Sendable {
 }
 
+struct BeginReopeningPages: Intent, WindowIntent, Equatable, Sendable {
+}
+
 struct BeginUnlockingSpace: Intent, SpaceAccessIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -1399,6 +1428,13 @@ struct BrowsingPreferences: Equatable, Sendable {
     var dataRetention: DataRetentionPreferences
 }
 
+struct CanChangeExtensions: Query, Equatable, Sendable {
+    typealias Answer = SendPermission
+
+    let spaceID: UUID
+    let engine: EngineKind
+}
+
 struct CanReturnToSavedAddress: Query, Equatable, Sendable {
     typealias Answer = SavedAddressReturn
 
@@ -1432,6 +1468,10 @@ struct CancelDownload: Intent, DownloadIntent, Equatable, Sendable {
 struct CancelEngineDownload: Equatable, Sendable {
     let profileID: UUID
     let downloadID: String
+}
+
+struct CancelExtensionInstall: Intent, ExtensionIntent, Equatable, Sendable {
+    let installID: UUID
 }
 
 struct CancelImportRead: Intent, SetupFlowIntent, Equatable, Sendable {
@@ -1505,10 +1545,15 @@ struct ChallengeHandling: Query, Equatable, Sendable {
     let previousFailureCount: Int
 }
 
-struct ChangeExtension: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
+struct ChangeEngineExtension: Equatable, Sendable {
     let profileID: UUID
+    let extensionID: String
+    let change: ExtensionChange
+}
+
+struct ChangeExtension: Intent, ExtensionIntent, Equatable, Sendable {
+    let spaceID: UUID
+    let engine: EngineKind
     let extensionID: String
     let change: ExtensionChange
 }
@@ -1551,6 +1596,11 @@ struct ChooseShareSource: PageRequest, Equatable, Sendable {
     let choice: ShareSourceChoice
     let tabPageID: UUID?
     let audio: Bool
+}
+
+struct ChooseShortcutPreference: Intent, ShortcutIntent, Equatable, Sendable {
+    let command: ShortcutCommand
+    let preference: ShortcutPreference
 }
 
 struct ChooseSiteEngine: Intent, Equatable, Sendable {
@@ -1915,6 +1965,10 @@ struct CredentialFillDecision: Equatable, Sendable {
     let isAllowed: Bool
 }
 
+struct CredentialFills: Equatable, Sendable {
+    let fills: [Bool]
+}
+
 struct CredentialFormFacts: Equatable, Sendable {
     var event: CredentialCaptureEvent
     var frameOrigin: CredentialOrigin
@@ -2042,6 +2096,13 @@ struct CredentialUsernameHint: Equatable, Sendable {
     var origin: CredentialOrigin
     var topLevelOrigin: CredentialOrigin
     var capturedAt: Double
+}
+
+struct CredentialsFillingPage: Query, Equatable, Sendable {
+    typealias Answer = CredentialFills
+
+    let page: CredentialOrigin
+    let saved: [CredentialOrigin]
 }
 
 struct CrestCharge: Equatable, Sendable {
@@ -2216,6 +2277,12 @@ struct DownloadDestinationAsked: CoreChange, Equatable, Sendable {
     let forcesPrompt: Bool
 }
 
+struct DownloadExtension: Equatable, Sendable {
+    let installID: UUID
+    let profileID: UUID
+    let extensionID: String
+}
+
 struct DownloadLimitReached: Equatable, Sendable {
     let limit: Int
 }
@@ -2235,11 +2302,6 @@ struct DownloadProgressReading: Equatable, Sendable {
     let estimator: DownloadTransferEstimator
     let telemetry: DownloadTelemetry
     let progress: Double
-}
-
-struct DownloadRetention: Equatable, Sendable {
-    var profileID: UUID
-    var lifetime: TimeInterval?
 }
 
 struct DownloadRisk: Query, Equatable, Sendable {
@@ -2374,7 +2436,6 @@ struct DropOnSpace: Intent, SessionIntent, SidebarDrop, Equatable, Sendable {
     let spaceID: UUID
     let selection: TabSelection
     let destinationSpaceID: UUID
-    let follows: Bool
 }
 
 struct DropStagedLink: Equatable, Sendable {
@@ -2458,6 +2519,10 @@ struct EditLinkRoute: Intent, LinkIntent, Equatable, Sendable {
 
 struct EndAgentSession: Intent, AgentIntent, Equatable, Sendable {
     let sessionID: UUID
+}
+
+struct EndExtensionInstall: Equatable, Sendable {
+    let installID: UUID
 }
 
 struct EnforcedLimits: Query, Equatable, Sendable {
@@ -2658,11 +2723,6 @@ struct ExpandSavedTabs: Intent, SessionIntent, Equatable, Sendable {
     let isExpanded: Bool
 }
 
-struct ExpireDownloads: Intent, DownloadIntent, Equatable, Sendable {
-    let now: Date
-    let retentions: [DownloadRetention]
-}
-
 struct ExportPage: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -2706,10 +2766,57 @@ struct ExtensionActionList: Equatable, Sendable {
     let actions: [ExtensionAction]
 }
 
+struct ExtensionCopyDestinationList: Equatable, Sendable {
+    let spaceIDs: [UUID]
+    let listed: Bool
+}
+
+struct ExtensionCopyDestinations: Query, Equatable, Sendable {
+    typealias Answer = ExtensionCopyDestinationList
+
+    let spaceID: UUID
+    let engine: EngineKind
+    let extensionID: String
+}
+
+struct ExtensionDownloadProgressed: Equatable, Sendable {
+    let installID: UUID
+    let fraction: Double
+}
+
+struct ExtensionDownloaded: EngineEvent, ExtensionEvent, Equatable, Sendable {
+    let installID: UUID
+}
+
+struct ExtensionIcon: Equatable, Sendable {
+    let extensionID: String
+    let image: Data?
+}
+
+struct ExtensionIconList: Equatable, Sendable {
+    let icons: [ExtensionIcon]
+}
+
+struct ExtensionIcons: PageRequest, Equatable, Sendable {
+    typealias Answer = ExtensionIconList
+
+    let profileID: UUID
+}
+
 struct ExtensionInstallAsked: CoreChange, Equatable, Sendable {
     let promptID: UUID
-    let windowID: UUID
+    let installID: UUID
     let question: ExtensionInstallQuestion
+}
+
+struct ExtensionInstallChanged: CoreChange, Equatable, Sendable {
+    let install: ExtensionInstallState
+}
+
+struct ExtensionInstallFailed: EngineEvent, ExtensionEvent, Equatable, Sendable {
+    let installID: UUID
+    let profileID: UUID
+    let reason: ExtensionInstallFailure
 }
 
 struct ExtensionInstallQuestion: Equatable, Sendable {
@@ -2723,14 +2830,42 @@ struct ExtensionInstallQuestion: Equatable, Sendable {
     var withholdsSiteAccess: Bool
 }
 
-struct ExtensionInstallRequested: EngineEvent, PromptEvent, Equatable, Sendable {
+struct ExtensionInstallRequested: EngineEvent, ExtensionEvent, Equatable, Sendable {
     let promptID: UUID
-    let windowID: UUID
+    let installID: UUID
     let question: ExtensionInstallQuestion
+}
+
+struct ExtensionInstallState: Equatable, Sendable {
+    let installID: UUID
+    let spaceID: UUID
+    let engine: EngineKind
+    let extensionID: String
+    let stage: ExtensionInstallStage
+    let installedCount: Int
+    let failure: ExtensionInstallFailure?
+}
+
+struct ExtensionInstalled: EngineEvent, ExtensionEvent, Equatable, Sendable {
+    let installID: UUID
+    let profileID: UUID
+}
+
+struct ExtensionNotChangeable: Equatable, Sendable {
+    let extensionID: String
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This extension is managed for you and can’t be changed.")
+    }
 }
 
 struct ExtensionsChanged: Equatable, Sendable {
     let profileID: UUID
+}
+
+struct ExtensionsListed: EngineEvent, ExtensionEvent, Equatable, Sendable {
+    let profileID: UUID
+    let extensions: [InstalledExtension]
 }
 
 struct ExternalAddressVerdict: Equatable, Sendable {
@@ -2847,6 +2982,10 @@ struct FinishDownload: Intent, DownloadIntent, Equatable, Sendable {
 
 struct FinishImportCommit: Intent, SetupFlowIntent, Equatable, Sendable {
     let passwordCount: Int
+    let unsavedPasswordCount: Int
+}
+
+struct FinishReopeningPages: Intent, WindowIntent, Equatable, Sendable {
 }
 
 struct FinishSetup: Intent, SetupFlowIntent, Equatable, Sendable {
@@ -2968,6 +3107,7 @@ struct ForgetEngineRule: Intent, Equatable, Sendable {
 struct ForgetPaletteChoices: Intent, PaletteIntent, Equatable, Sendable {
     let windowID: UUID
     let row: PaletteRow.Seed
+    let spaceID: UUID?
 }
 
 struct GetAgentPreferences: Query, Equatable, Sendable {
@@ -3250,26 +3390,36 @@ struct InspectorLayoutChanged: Equatable, Sendable {
     let pageID: UUID
 }
 
-struct InstalledExtension: Equatable, Sendable, Identifiable {
-    let id: String
-    let name: String
-    let version: String
-    let description: String
-    let icon: Data?
-    let enabled: Bool
-    let permissions: [String]
-    let fromWebStore: Bool
-    let optionsURL: String?
+struct InstallExtension: Intent, ExtensionIntent, Equatable, Sendable {
+    let installID: UUID
+    let spaceID: UUID
+    let engine: EngineKind
+    let extensionID: String
+    let copySpaceIDs: [UUID]
+    let preApproved: Bool
 }
 
-struct InstalledExtensionList: Equatable, Sendable {
-    let extensions: [InstalledExtension]
-}
-
-struct InstalledExtensions: PageRequest, Equatable, Sendable {
-    typealias Answer = InstalledExtensionList
-
+struct InstallExtensionPackage: Equatable, Sendable {
+    let installID: UUID
     let profileID: UUID
+}
+
+struct InstalledExtension: Equatable, Sendable, Identifiable {
+    var id: String
+    var name: String
+    var version: String
+    var description: String
+    var enabled: Bool
+    var changeable: Bool
+    var permissions: [String]
+    var fromWebStore: Bool
+    var optionsURL: String?
+}
+
+struct InstalledExtensionsChanged: CoreChange, Equatable, Sendable {
+    let engine: EngineKind
+    let profileID: UUID
+    let extensions: [InstalledExtension]
 }
 
 struct InteractionState: Equatable, Sendable {
@@ -3538,6 +3688,7 @@ struct LaunchWindowPlan: Equatable, Sendable {
     let windowIDs: [UUID]
     let startupWindowID: UUID
     let setup: SetupEntry?
+    let quitWhileReopening: Bool
 }
 
 struct LaunchWindows: Query, Equatable, Sendable {
@@ -3638,6 +3789,7 @@ struct LinkPreferences: Equatable, Sendable {
     let opensPeekAutomatically: Bool
     let peekModifier: LinkPeekModifier
     let dragsLinksToPeek: Bool
+    let dimsPageBehindPeek: Bool
     let archivePolicy: QuickWindowArchivePolicy
     let remembersSpaceBySite: Bool
     let routes: [LinkRoute]
@@ -3667,6 +3819,15 @@ struct LinkRoutesFull: Equatable, Sendable {
 struct ListDropTarget: Equatable, Sendable {
     let section: TabPlacement
     let folderID: UUID?
+}
+
+struct ListEngineExtensions: Equatable, Sendable {
+    let profileID: UUID
+}
+
+struct ListExtensions: Intent, ExtensionIntent, Equatable, Sendable {
+    let spaceID: UUID
+    let engine: EngineKind
 }
 
 struct LoadAddress: Intent, PageIntent, Equatable, Sendable {
@@ -3852,7 +4013,6 @@ struct MoveTabToSpace: Intent, SessionIntent, Equatable, Sendable {
     let placement: TabPlacement?
     let folderID: UUID?
     let beforeTabID: UUID?
-    let follows: Bool
 }
 
 struct MoveTabToWindow: Intent, SessionIntent, Equatable, Sendable {
@@ -3869,7 +4029,6 @@ struct MoveTabsToSpace: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID
     let selection: TabSelection
     let destinationSpaceID: UUID
-    let follows: Bool
 }
 
 struct MuteMediaSession: PageRequest, Equatable, Sendable {
@@ -4469,14 +4628,49 @@ struct PageScriptEvaluated: Equatable, Sendable {
     let error: String?
 }
 
+struct PageSecurityFacts: Equatable, Sendable {
+    static let unknown = PageSecurityFacts(
+        cryptographicScheme: false,
+        connectionJudged: false,
+        certificateError: false,
+        engineWarns: false,
+        mixedContent: [],
+        maliciousContent: false,
+        errorPage: false
+    )
+
+    var cryptographicScheme: Bool
+    var connectionJudged: Bool
+    var certificateError: Bool
+    var engineWarns: Bool
+    var mixedContent: PageMixedContent
+    var maliciousContent: Bool
+    var errorPage: Bool
+}
+
 struct PageSnapshot: Equatable, Sendable {
-    static let blank = PageSnapshot(url: nil, pendingURL: nil, title: "", isLoading: false, security: PageSecurity.none, media: [])
+    static let blank = PageSnapshot(
+        url: nil,
+        pendingURL: nil,
+        title: "",
+        isLoading: false,
+        security: PageSecurityFacts(
+            cryptographicScheme: false,
+            connectionJudged: false,
+            certificateError: false,
+            engineWarns: false,
+            mixedContent: [],
+            maliciousContent: false,
+            errorPage: false
+        ),
+        media: []
+    )
 
     var url: String?
     var pendingURL: String?
     var title: String
     var isLoading: Bool
-    var security: PageSecurity
+    var security: PageSecurityFacts
     var media: PageMediaActivity
 }
 
@@ -4657,6 +4851,7 @@ struct PaletteSuggestions: Query, Equatable, Sendable {
     let scope: PaletteScope?
     let allowsCompletion: Bool
     let pasteboard: String?
+    let spaceID: UUID?
 }
 
 struct PasskeyAccess: Query, Equatable, Sendable {
@@ -4793,13 +4988,6 @@ struct PopupBlocked: Equatable, Sendable {
     let pageURL: String
 }
 
-struct PrepareProfile: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
-    let profileID: UUID
-    let preparationID: UUID
-}
-
 struct PrepareToClosePages: Intent, CloseIntent, Equatable, Sendable {
     let requestID: UUID
     let pageIDs: [UUID]
@@ -4890,11 +5078,6 @@ struct ProfileNotificationPosted: Equatable, Sendable {
     let title: String
     let body: String
     let silent: Bool
-}
-
-struct ProfilePrepared: Equatable, Sendable {
-    let preparationID: UUID
-    let ready: Bool
 }
 
 struct ProfileReleased: Equatable, Sendable {
@@ -5007,6 +5190,7 @@ struct RecordPaletteChoice: Intent, PaletteIntent, Equatable, Sendable {
     let windowID: UUID
     let text: String
     let row: PaletteRow.Seed
+    let spaceID: UUID?
 }
 
 struct RecordsToUpload: Query, Equatable, Sendable {
@@ -5449,6 +5633,12 @@ struct SearchProvider: Equatable, Sendable {
     }
 }
 
+struct SearchProviderPreview: Query, Equatable, Sendable {
+    typealias Answer = SearchProvider
+
+    let provider: CustomSearchProvider
+}
+
 struct SearchProviderSettings: Equatable, Sendable {
     let provider: BuiltInSearchProvider
     let isEnabled: Bool
@@ -5881,6 +6071,7 @@ struct SetupReviewSpace: Equatable, Sendable {
     let passwordCount: Int
     let extensions: [ImportExtension]
     let includedExtensionIDs: [String]
+    let joinsGroupOf: UUID?
     let shownName: String
     let bringsPasswords: Bool
     let broughtExtensions: [ImportExtension]
@@ -5891,6 +6082,7 @@ struct SetupSummary: Equatable, Sendable {
     let tabCount: Int
     let passwordCount: Int
     let spaceCount: Int
+    let unsavedPasswordCount: Int
 }
 
 struct ShareSourcesOffered: Equatable, Sendable {
@@ -5917,6 +6109,9 @@ struct ShortcutBinding: Equatable, Sendable {
     let command: ShortcutCommand
     let keys: KeyCombination?
     let isCustomized: Bool
+    let preference: ShortcutPreference
+    let choosesPreference: Bool
+    let yieldsToTextEditing: Bool
 }
 
 struct ShortcutDefault: Equatable, Sendable {
@@ -6280,6 +6475,14 @@ struct SpaceDeletionUnderway: Equatable, Sendable {
     }
 }
 
+struct SpaceIsPrivate: Equatable, Sendable {
+    let spaceID: UUID
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Extensions can’t be changed in a private window.")
+    }
+}
+
 struct SpaceLimitReached: Equatable, Sendable {
     let limit: Int
 
@@ -6315,6 +6518,18 @@ struct SpaceProfileChanged: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("That Space is no longer available.")
     }
+}
+
+struct SpaceSearch: Query, Equatable, Sendable {
+    typealias Answer = SpaceSearchAnswer
+
+    let workspaceID: UUID
+    let spaceID: UUID
+}
+
+struct SpaceSearchAnswer: Equatable, Sendable {
+    let provider: SearchProvider
+    let suggestsSearches: Bool
 }
 
 struct SpaceSettings: Equatable, Sendable {
@@ -6975,6 +7190,14 @@ struct UnknownCloudMerge: Equatable, Sendable {
     }
 }
 
+struct UnknownExtension: Equatable, Sendable {
+    let extensionID: String
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("That extension is no longer installed.")
+    }
+}
+
 struct UnknownFolder: Equatable, Sendable {
     let folderID: UUID
 }
@@ -7445,6 +7668,13 @@ struct PageMediaActivity: OptionSet, Sendable {
     static let playing = PageMediaActivity(rawValue: 1)
     static let capturing = PageMediaActivity(rawValue: 2)
     static let pictureInPicture = PageMediaActivity(rawValue: 4)
+}
+
+struct PageMixedContent: OptionSet, Sendable {
+    let rawValue: Int
+    static let ran = PageMixedContent(rawValue: 1)
+    static let displayed = PageMixedContent(rawValue: 2)
+    static let form = PageMixedContent(rawValue: 4)
 }
 
 enum PageScriptWorld: Int, CaseIterable, Sendable {
@@ -13160,6 +13390,164 @@ struct ExportFormat: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `ExtensionInstallFailure`. A member's wire tag is its index in `all`.
+struct ExtensionInstallFailure: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var message: LocalizedStringResource { facts.message }
+    var closesReview: Bool { facts.closesReview }
+    private let facts: Facts
+
+    private init(tag: Int, name: String, message: LocalizedStringResource, closesReview: Bool) {
+        self.tag = tag
+        facts = Facts(name: name, message: message, closesReview: closesReview)
+    }
+
+    static let spaceUnavailable = ExtensionInstallFailure(
+        tag: 0,
+        name: "space_unavailable",
+        message: LocalizedStringResource("The Space is no longer available."),
+        closesReview: true
+    )
+    static let downloadFailed = ExtensionInstallFailure(
+        tag: 1,
+        name: "download_failed",
+        message: LocalizedStringResource("Couldn’t download this extension."),
+        closesReview: false
+    )
+    static let refused = ExtensionInstallFailure(
+        tag: 2,
+        name: "refused",
+        message: LocalizedStringResource("This extension couldn’t be verified or installed."),
+        closesReview: false
+    )
+    static let canceled = ExtensionInstallFailure(
+        tag: 3,
+        name: "canceled",
+        message: LocalizedStringResource("Installation canceled."),
+        closesReview: false
+    )
+
+    static let all: [ExtensionInstallFailure] = [spaceUnavailable, downloadFailed, refused, canceled]
+
+    static func named(_ name: String?) -> ExtensionInstallFailure? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: ExtensionInstallFailure, rhs: ExtensionInstallFailure) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let message: LocalizedStringResource
+        let closesReview: Bool
+
+        init(name: String, message: LocalizedStringResource, closesReview: Bool) {
+            self.name = name
+            self.message = message
+            self.closesReview = closesReview
+        }
+    }
+}
+
+/// The members of the core's `ExtensionInstallStage`. A member's wire tag is its index in `all`.
+struct ExtensionInstallStage: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var isPreparing: Bool { facts.isPreparing }
+    var isInstalling: Bool { facts.isInstalling }
+    var hasEnded: Bool { facts.hasEnded }
+    var hasInstalled: Bool { facts.hasInstalled }
+    private let facts: Facts
+
+    private init(tag: Int, name: String, isPreparing: Bool, isInstalling: Bool, hasEnded: Bool, hasInstalled: Bool) {
+        self.tag = tag
+        facts = Facts(
+            name: name,
+            isPreparing: isPreparing,
+            isInstalling: isInstalling,
+            hasEnded: hasEnded,
+            hasInstalled: hasInstalled
+        )
+    }
+
+    static let downloading = ExtensionInstallStage(
+        tag: 0,
+        name: "downloading",
+        isPreparing: true,
+        isInstalling: false,
+        hasEnded: false,
+        hasInstalled: false
+    )
+    static let asking = ExtensionInstallStage(
+        tag: 1,
+        name: "asking",
+        isPreparing: false,
+        isInstalling: false,
+        hasEnded: false,
+        hasInstalled: false
+    )
+    static let installing = ExtensionInstallStage(
+        tag: 2,
+        name: "installing",
+        isPreparing: false,
+        isInstalling: true,
+        hasEnded: false,
+        hasInstalled: false
+    )
+    static let installed = ExtensionInstallStage(
+        tag: 3,
+        name: "installed",
+        isPreparing: false,
+        isInstalling: false,
+        hasEnded: true,
+        hasInstalled: true
+    )
+    static let failed = ExtensionInstallStage(
+        tag: 4,
+        name: "failed",
+        isPreparing: false,
+        isInstalling: false,
+        hasEnded: true,
+        hasInstalled: false
+    )
+
+    static let all: [ExtensionInstallStage] = [downloading, asking, installing, installed, failed]
+
+    static func named(_ name: String?) -> ExtensionInstallStage? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: ExtensionInstallStage, rhs: ExtensionInstallStage) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let isPreparing: Bool
+        let isInstalling: Bool
+        let hasEnded: Bool
+        let hasInstalled: Bool
+
+        init(name: String, isPreparing: Bool, isInstalling: Bool, hasEnded: Bool, hasInstalled: Bool) {
+            self.name = name
+            self.isPreparing = isPreparing
+            self.isInstalling = isInstalling
+            self.hasEnded = hasEnded
+            self.hasInstalled = hasInstalled
+        }
+    }
+}
+
 /// The members of the core's `ExternalLinkDestination`. A member's wire tag is its index in `all`.
 /// Core-only behavior, not emitted: `space`.
 struct ExternalLinkDestination: Hashable, Sendable {
@@ -13927,13 +14315,15 @@ struct LinkBehavior: Hashable, Sendable {
     static let followsMovedTabs = LinkBehavior(tag: 1, name: "followsMovedTabs")
     static let opensPeekAutomatically = LinkBehavior(tag: 2, name: "opensPeekAutomatically")
     static let dragsLinksToPeek = LinkBehavior(tag: 3, name: "dragsLinksToPeek")
-    static let remembersSpaceBySite = LinkBehavior(tag: 4, name: "remembersSpaceBySite")
+    static let dimsPageBehindPeek = LinkBehavior(tag: 4, name: "dimsPageBehindPeek")
+    static let remembersSpaceBySite = LinkBehavior(tag: 5, name: "remembersSpaceBySite")
 
     static let all: [LinkBehavior] = [
         focusesNewTabs,
         followsMovedTabs,
         opensPeekAutomatically,
         dragsLinksToPeek,
+        dimsPageBehindPeek,
         remembersSpaceBySite
     ]
 
@@ -14014,7 +14404,7 @@ struct LinkNavigationDecision: Hashable, Sendable {
         protectsSavedSite: true,
         opensTab: false,
         selectsTab: false,
-        stagesLink: false
+        stagesLink: true
     )
     static let backgroundTab = LinkNavigationDecision(
         tag: 3,
@@ -14076,6 +14466,7 @@ struct LinkPeekModifier: Hashable, Sendable {
     var clickTitle: LocalizedStringResource { facts.clickTitle }
     var peekKey: ShortcutModifiers { facts.peekKey }
     var newTabKey: ShortcutModifiers { facts.newTabKey }
+    var yieldsToNewTabKey: Bool { facts.yieldsToNewTabKey }
     private let facts: Facts
 
     private init(
@@ -14084,10 +14475,18 @@ struct LinkPeekModifier: Hashable, Sendable {
         title: LocalizedStringResource,
         clickTitle: LocalizedStringResource,
         peekKey: ShortcutModifiers,
-        newTabKey: ShortcutModifiers
+        newTabKey: ShortcutModifiers,
+        yieldsToNewTabKey: Bool
     ) {
         self.tag = tag
-        facts = Facts(name: name, title: title, clickTitle: clickTitle, peekKey: peekKey, newTabKey: newTabKey)
+        facts = Facts(
+            name: name,
+            title: title,
+            clickTitle: clickTitle,
+            peekKey: peekKey,
+            newTabKey: newTabKey,
+            yieldsToNewTabKey: yieldsToNewTabKey
+        )
     }
 
     static let option = LinkPeekModifier(
@@ -14096,7 +14495,8 @@ struct LinkPeekModifier: Hashable, Sendable {
         title: LocalizedStringResource("Option (⌥)"),
         clickTitle: LocalizedStringResource("Option-click"),
         peekKey: [.option],
-        newTabKey: [.command]
+        newTabKey: [.command],
+        yieldsToNewTabKey: false
     )
     static let command = LinkPeekModifier(
         tag: 1,
@@ -14104,10 +14504,20 @@ struct LinkPeekModifier: Hashable, Sendable {
         title: LocalizedStringResource("Command (⌘)"),
         clickTitle: LocalizedStringResource("Command-click"),
         peekKey: [.command],
-        newTabKey: [.option]
+        newTabKey: [.option],
+        yieldsToNewTabKey: false
+    )
+    static let shift = LinkPeekModifier(
+        tag: 2,
+        name: "shift",
+        title: LocalizedStringResource("Shift (⇧)"),
+        clickTitle: LocalizedStringResource("Shift-click"),
+        peekKey: [.shift],
+        newTabKey: [.command],
+        yieldsToNewTabKey: true
     )
 
-    static let all: [LinkPeekModifier] = [option, command]
+    static let all: [LinkPeekModifier] = [option, command, shift]
 
     static func named(_ name: String?) -> LinkPeekModifier? {
         all.first { $0.name == name }
@@ -14127,19 +14537,22 @@ struct LinkPeekModifier: Hashable, Sendable {
         let clickTitle: LocalizedStringResource
         let peekKey: ShortcutModifiers
         let newTabKey: ShortcutModifiers
+        let yieldsToNewTabKey: Bool
 
         init(
             name: String,
             title: LocalizedStringResource,
             clickTitle: LocalizedStringResource,
             peekKey: ShortcutModifiers,
-            newTabKey: ShortcutModifiers
+            newTabKey: ShortcutModifiers,
+            yieldsToNewTabKey: Bool
         ) {
             self.name = name
             self.title = title
             self.clickTitle = clickTitle
             self.peekKey = peekKey
             self.newTabKey = newTabKey
+            self.yieldsToNewTabKey = yieldsToNewTabKey
         }
     }
 }
@@ -14721,6 +15134,7 @@ struct PagePresentation: Hashable, Sendable {
 }
 
 /// The members of the core's `PageSecurity`. A member's wire tag is its index in `all`.
+/// Core-only behavior, not emitted: `applies`.
 struct PageSecurity: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
@@ -16472,7 +16886,7 @@ struct SearchEngineFlaw: Hashable, Sendable {
     static let placeholderInFragment = SearchEngineFlaw(
         tag: 11,
         name: "placeholderInFragment",
-        message: LocalizedStringResource("Put the query placeholder in the path or query, not the fragment.")
+        message: LocalizedStringResource("Put the suggestions URL’s placeholder in the path or query, not the fragment.")
     )
     static let secretInTemplate = SearchEngineFlaw(
         tag: 12,
@@ -17507,7 +17921,7 @@ struct SetupFailureReason: Hashable, Sendable {
 }
 
 /// The members of the core's `SetupLook`. A member's wire tag is its index in `all`.
-/// Core-only behavior, not emitted: `newSpaceLook`, `applying`.
+/// Core-only behavior, not emitted: `newSpaceLook`.
 struct SetupLook: Hashable, Sendable {
     enum Kinds: Sendable {
         case heraldic
@@ -17518,20 +17932,49 @@ struct SetupLook: Hashable, Sendable {
     var kind: Kinds { facts.kind }
     var name: String { facts.name }
     var title: LocalizedStringResource { facts.title }
+    var themeMode: SpaceThemeMode { facts.themeMode }
+    var iconStyle: SpaceIconStyle { facts.iconStyle }
+    var gradientAngle: Double? { facts.gradientAngle }
     private let facts: Facts
 
-    private init(tag: Int, kind: Kinds, name: String, title: LocalizedStringResource) {
+    private init(
+        tag: Int,
+        kind: Kinds,
+        name: String,
+        title: LocalizedStringResource,
+        themeMode: SpaceThemeMode,
+        iconStyle: SpaceIconStyle,
+        gradientAngle: Double?
+    ) {
         self.tag = tag
-        facts = Facts(kind: kind, name: name, title: title)
+        facts = Facts(
+            kind: kind,
+            name: name,
+            title: title,
+            themeMode: themeMode,
+            iconStyle: iconStyle,
+            gradientAngle: gradientAngle
+        )
     }
 
     static let heraldic = SetupLook(
         tag: 0,
         kind: .heraldic,
         name: "heraldic",
-        title: LocalizedStringResource("Heraldic")
+        title: LocalizedStringResource("Heraldic"),
+        themeMode: SpaceThemeMode.banner,
+        iconStyle: SpaceIconStyle.layeredCrest,
+        gradientAngle: nil
     )
-    static let modern = SetupLook(tag: 1, kind: .modern, name: "modern", title: LocalizedStringResource("Modern"))
+    static let modern = SetupLook(
+        tag: 1,
+        kind: .modern,
+        name: "modern",
+        title: LocalizedStringResource("Modern"),
+        themeMode: SpaceThemeMode.gradient,
+        iconStyle: SpaceIconStyle.simpleSymbol,
+        gradientAngle: 90
+    )
 
     static let all: [SetupLook] = [heraldic, modern]
 
@@ -17551,11 +17994,24 @@ struct SetupLook: Hashable, Sendable {
         let kind: Kinds
         let name: String
         let title: LocalizedStringResource
+        let themeMode: SpaceThemeMode
+        let iconStyle: SpaceIconStyle
+        let gradientAngle: Double?
 
-        init(kind: Kinds, name: String, title: LocalizedStringResource) {
+        init(
+            kind: Kinds,
+            name: String,
+            title: LocalizedStringResource,
+            themeMode: SpaceThemeMode,
+            iconStyle: SpaceIconStyle,
+            gradientAngle: Double?
+        ) {
             self.kind = kind
             self.name = name
             self.title = title
+            self.themeMode = themeMode
+            self.iconStyle = iconStyle
+            self.gradientAngle = gradientAngle
         }
     }
 }
@@ -17738,6 +18194,7 @@ struct ShortcutCommand: Hashable, Sendable {
         case mostRecentTabBackward
         case clearSiteCookies
         case clearSiteCache
+        case toggleSelectedTabSaved
     }
 
     let tag: Int
@@ -17755,6 +18212,7 @@ struct ShortcutCommand: Hashable, Sendable {
     var paletteRest: Int? { facts.paletteRest }
     var offersInPalette: Bool { facts.offersInPalette }
     var isReservedFromPages: Bool { facts.isReservedFromPages }
+    var defaultPreference: ShortcutPreference { facts.defaultPreference }
     private let facts: Facts
 
     private init(
@@ -17772,7 +18230,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [ShortcutDefault],
         paletteRest: Int?,
         offersInPalette: Bool,
-        isReservedFromPages: Bool
+        isReservedFromPages: Bool,
+        defaultPreference: ShortcutPreference
     ) {
         self.tag = tag
         facts = Facts(
@@ -17789,7 +18248,8 @@ struct ShortcutCommand: Hashable, Sendable {
             defaultShortcuts: defaultShortcuts,
             paletteRest: paletteRest,
             offersInPalette: offersInPalette,
-            isReservedFromPages: isReservedFromPages
+            isReservedFromPages: isReservedFromPages,
+            defaultPreference: defaultPreference
         )
     }
 
@@ -17819,7 +18279,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: 1,
         offersInPalette: true,
-        isReservedFromPages: true
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let newBlankWindow = ShortcutCommand(
         tag: 1,
@@ -17842,7 +18303,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let newTab = ShortcutCommand(
         tag: 2,
@@ -17870,7 +18332,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: true
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let newQuickWindow = ShortcutCommand(
         tag: 3,
@@ -17898,7 +18361,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let newPrivateWindow = ShortcutCommand(
         tag: 4,
@@ -17926,7 +18390,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: true
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let closeTabOrWindow = ShortcutCommand(
         tag: 5,
@@ -17954,7 +18419,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: true
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let closeWindow = ShortcutCommand(
         tag: 6,
@@ -17982,7 +18448,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: true
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let openLocation = ShortcutCommand(
         tag: 7,
@@ -18010,7 +18477,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let back = ShortcutCommand(
         tag: 8,
@@ -18038,7 +18506,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let forward = ShortcutCommand(
         tag: 9,
@@ -18066,7 +18535,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let reloadPage = ShortcutCommand(
         tag: 10,
@@ -18094,7 +18564,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let stopLoading = ShortcutCommand(
         tag: 11,
@@ -18122,7 +18593,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let reloadFromOrigin = ShortcutCommand(
         tag: 12,
@@ -18150,7 +18622,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let toggleSelectedTabPinned = ShortcutCommand(
         tag: 13,
@@ -18178,7 +18651,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let duplicateTab = ShortcutCommand(
         tag: 14,
@@ -18195,7 +18669,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let reopenClosedTab = ShortcutCommand(
         tag: 15,
@@ -18223,7 +18698,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: 2,
         offersInPalette: true,
-        isReservedFromPages: true
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let clearUnpinnedTabs = ShortcutCommand(
         tag: 16,
@@ -18251,7 +18727,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let archiveTab = ShortcutCommand(
         tag: 17,
@@ -18279,7 +18756,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let previousTab = ShortcutCommand(
         tag: 18,
@@ -18307,7 +18785,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: true
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let nextTab = ShortcutCommand(
         tag: 19,
@@ -18335,7 +18814,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: true
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let mostRecentTab = ShortcutCommand(
         tag: 20,
@@ -18363,7 +18843,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: true
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let selectTab1 = ShortcutCommand(
         tag: 21,
@@ -18391,7 +18872,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let selectTab2 = ShortcutCommand(
         tag: 22,
@@ -18419,7 +18901,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let selectTab3 = ShortcutCommand(
         tag: 23,
@@ -18447,7 +18930,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let selectTab4 = ShortcutCommand(
         tag: 24,
@@ -18475,7 +18959,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let selectTab5 = ShortcutCommand(
         tag: 25,
@@ -18503,7 +18988,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let selectTab6 = ShortcutCommand(
         tag: 26,
@@ -18531,7 +19017,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let selectTab7 = ShortcutCommand(
         tag: 27,
@@ -18559,7 +19046,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let selectTab8 = ShortcutCommand(
         tag: 28,
@@ -18587,7 +19075,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let selectTab9 = ShortcutCommand(
         tag: 29,
@@ -18615,7 +19104,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let previousSpace = ShortcutCommand(
         tag: 30,
@@ -18643,7 +19133,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let nextSpace = ShortcutCommand(
         tag: 31,
@@ -18671,7 +19162,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let selectSpace1 = ShortcutCommand(
         tag: 32,
@@ -18699,7 +19191,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let selectSpace2 = ShortcutCommand(
         tag: 33,
@@ -18727,7 +19220,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let selectSpace3 = ShortcutCommand(
         tag: 34,
@@ -18755,7 +19249,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let selectSpace4 = ShortcutCommand(
         tag: 35,
@@ -18783,7 +19278,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let selectSpace5 = ShortcutCommand(
         tag: 36,
@@ -18811,7 +19307,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let selectSpace6 = ShortcutCommand(
         tag: 37,
@@ -18839,7 +19336,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let selectSpace7 = ShortcutCommand(
         tag: 38,
@@ -18867,7 +19365,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let selectSpace8 = ShortcutCommand(
         tag: 39,
@@ -18895,7 +19394,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let selectSpace9 = ShortcutCommand(
         tag: 40,
@@ -18923,7 +19423,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: false,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let toggleReaderMode = ShortcutCommand(
         tag: 41,
@@ -18940,7 +19441,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let toggleContentBlocking = ShortcutCommand(
         tag: 42,
@@ -18957,7 +19459,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let findInPage = ShortcutCommand(
         tag: 43,
@@ -18985,7 +19488,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let zoomIn = ShortcutCommand(
         tag: 44,
@@ -19013,7 +19517,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let zoomOut = ShortcutCommand(
         tag: 45,
@@ -19041,7 +19546,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let actualSize = ShortcutCommand(
         tag: 46,
@@ -19069,7 +19575,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let copyPageLink = ShortcutCommand(
         tag: 47,
@@ -19097,7 +19604,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let copyPageLinkAsMarkdown = ShortcutCommand(
         tag: 48,
@@ -19125,7 +19633,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let sharePage = ShortcutCommand(
         tag: 49,
@@ -19142,7 +19651,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let exportPDF = ShortcutCommand(
         tag: 50,
@@ -19159,7 +19669,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let saveWebArchive = ShortcutCommand(
         tag: 51,
@@ -19176,7 +19687,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let printPage = ShortcutCommand(
         tag: 52,
@@ -19204,7 +19716,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let toggleSidebar = ShortcutCommand(
         tag: 53,
@@ -19232,7 +19745,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: 5,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let showHistory = ShortcutCommand(
         tag: 54,
@@ -19260,7 +19774,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: 3,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let showArchive = ShortcutCommand(
         tag: 55,
@@ -19277,7 +19792,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let showDownloads = ShortcutCommand(
         tag: 56,
@@ -19305,7 +19821,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: 4,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let showWebInspector = ShortcutCommand(
         tag: 57,
@@ -19333,7 +19850,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let splitWithNextTab = ShortcutCommand(
         tag: 58,
@@ -19350,7 +19868,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let focusNextSplitCard = ShortcutCommand(
         tag: 59,
@@ -19378,7 +19897,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let focusPreviousSplitCard = ShortcutCommand(
         tag: 60,
@@ -19406,7 +19926,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let removeTabFromSplit = ShortcutCommand(
         tag: 61,
@@ -19423,7 +19944,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let separateSplitTabs = ShortcutCommand(
         tag: 62,
@@ -19451,7 +19973,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let moveSplitCardLeft = ShortcutCommand(
         tag: 63,
@@ -19479,7 +20002,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let moveSplitCardRight = ShortcutCommand(
         tag: 64,
@@ -19507,7 +20031,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let toggleDeveloperToolbar = ShortcutCommand(
         tag: 65,
@@ -19535,7 +20060,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let toggleTranslationToolbar = ShortcutCommand(
         tag: 66,
@@ -19563,7 +20089,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let openFile = ShortcutCommand(
         tag: 67,
@@ -19580,7 +20107,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let findNext = ShortcutCommand(
         tag: 68,
@@ -19603,7 +20131,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let findPrevious = ShortcutCommand(
         tag: 69,
@@ -19626,7 +20155,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let capturePage = ShortcutCommand(
         tag: 70,
@@ -19649,7 +20179,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
     static let mostRecentTabBackward = ShortcutCommand(
         tag: 71,
@@ -19677,7 +20208,8 @@ struct ShortcutCommand: Hashable, Sendable {
         ],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: true
+        isReservedFromPages: true,
+        defaultPreference: ShortcutPreference.preferCrest
     )
     static let clearSiteCookies = ShortcutCommand(
         tag: 72,
@@ -19694,7 +20226,8 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
     )
     static let clearSiteCache = ShortcutCommand(
         tag: 73,
@@ -19711,7 +20244,26 @@ struct ShortcutCommand: Hashable, Sendable {
         defaultShortcuts: [],
         paletteRest: nil,
         offersInPalette: true,
-        isReservedFromPages: false
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.preferWebsite
+    )
+    static let toggleSelectedTabSaved = ShortcutCommand(
+        tag: 74,
+        kind: .toggleSelectedTabSaved,
+        name: "toggleSelectedTabSaved",
+        section: ShortcutSection.tabs,
+        title: LocalizedStringResource("Save or Unsave Current Tab"),
+        searchTerms: LocalizedStringResource("saved tabs keep bookmark unsave current"),
+        menuTitle: LocalizedStringResource("Save or Unsave Tab"),
+        symbol: "bookmark",
+        requiredCapability: nil,
+        selects: nil,
+        number: nil,
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true,
+        isReservedFromPages: false,
+        defaultPreference: ShortcutPreference.useBoth
     )
 
     static let all: [ShortcutCommand] = [
@@ -19788,7 +20340,8 @@ struct ShortcutCommand: Hashable, Sendable {
         capturePage,
         mostRecentTabBackward,
         clearSiteCookies,
-        clearSiteCache
+        clearSiteCache,
+        toggleSelectedTabSaved
     ]
 
     static func named(_ name: String?) -> ShortcutCommand? {
@@ -19818,6 +20371,7 @@ struct ShortcutCommand: Hashable, Sendable {
         let paletteRest: Int?
         let offersInPalette: Bool
         let isReservedFromPages: Bool
+        let defaultPreference: ShortcutPreference
 
         init(
             kind: Kinds,
@@ -19833,7 +20387,8 @@ struct ShortcutCommand: Hashable, Sendable {
             defaultShortcuts: [ShortcutDefault],
             paletteRest: Int?,
             offersInPalette: Bool,
-            isReservedFromPages: Bool
+            isReservedFromPages: Bool,
+            defaultPreference: ShortcutPreference
         ) {
             self.kind = kind
             self.name = name
@@ -19849,6 +20404,7 @@ struct ShortcutCommand: Hashable, Sendable {
             self.paletteRest = paletteRest
             self.offersInPalette = offersInPalette
             self.isReservedFromPages = isReservedFromPages
+            self.defaultPreference = defaultPreference
         }
     }
 }
@@ -19914,6 +20470,7 @@ struct ShortcutMenu: Hashable, Sendable {
         groups: [
             [
                 ShortcutCommand.toggleSelectedTabPinned,
+                ShortcutCommand.toggleSelectedTabSaved,
                 ShortcutCommand.duplicateTab,
                 ShortcutCommand.reopenClosedTab,
                 ShortcutCommand.clearUnpinnedTabs,
@@ -20019,6 +20576,90 @@ struct ShortcutMenu: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `ShortcutPreference`. A member's wire tag is its index in `all`.
+struct ShortcutPreference: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var title: LocalizedStringResource { facts.title }
+    var symbol: String { facts.symbol }
+    var runsBeforePage: Bool { facts.runsBeforePage }
+    var takesSecondPress: Bool { facts.takesSecondPress }
+    private let facts: Facts
+
+    private init(
+        tag: Int,
+        name: String,
+        title: LocalizedStringResource,
+        symbol: String,
+        runsBeforePage: Bool,
+        takesSecondPress: Bool
+    ) {
+        self.tag = tag
+        facts = Facts(
+            name: name,
+            title: title,
+            symbol: symbol,
+            runsBeforePage: runsBeforePage,
+            takesSecondPress: takesSecondPress
+        )
+    }
+
+    static let preferCrest = ShortcutPreference(
+        tag: 0,
+        name: "preferCrest",
+        title: LocalizedStringResource("Prefer Crest"),
+        symbol: "macwindow",
+        runsBeforePage: true,
+        takesSecondPress: false
+    )
+    static let useBoth = ShortcutPreference(
+        tag: 1,
+        name: "useBoth",
+        title: LocalizedStringResource("Use Both"),
+        symbol: "2.circle",
+        runsBeforePage: false,
+        takesSecondPress: true
+    )
+    static let preferWebsite = ShortcutPreference(
+        tag: 2,
+        name: "preferWebsite",
+        title: LocalizedStringResource("Prefer Website"),
+        symbol: "globe",
+        runsBeforePage: false,
+        takesSecondPress: false
+    )
+
+    static let all: [ShortcutPreference] = [preferCrest, useBoth, preferWebsite]
+
+    static func named(_ name: String?) -> ShortcutPreference? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: ShortcutPreference, rhs: ShortcutPreference) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let title: LocalizedStringResource
+        let symbol: String
+        let runsBeforePage: Bool
+        let takesSecondPress: Bool
+
+        init(name: String, title: LocalizedStringResource, symbol: String, runsBeforePage: Bool, takesSecondPress: Bool) {
+            self.name = name
+            self.title = title
+            self.symbol = symbol
+            self.runsBeforePage = runsBeforePage
+            self.takesSecondPress = takesSecondPress
+        }
+    }
+}
+
 /// The members of the core's `ShortcutSection`. A member's wire tag is its index in `all`.
 struct ShortcutSection: Hashable, Sendable {
     let tag: Int
@@ -20070,6 +20711,7 @@ struct ShortcutSpecialKey: Hashable, Sendable {
     var title: LocalizedStringResource? { facts.title }
     var spokenName: LocalizedStringResource? { facts.spokenName }
     var functionKeyNumber: Int? { facts.functionKeyNumber }
+    var standsAlone: Bool { facts.standsAlone }
     private let facts: Facts
 
     private init(
@@ -20078,7 +20720,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: String?,
         title: LocalizedStringResource?,
         spokenName: LocalizedStringResource?,
-        functionKeyNumber: Int?
+        functionKeyNumber: Int?,
+        standsAlone: Bool
     ) {
         self.tag = tag
         facts = Facts(
@@ -20086,7 +20729,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
             glyph: glyph,
             title: title,
             spokenName: spokenName,
-            functionKeyNumber: functionKeyNumber
+            functionKeyNumber: functionKeyNumber,
+            standsAlone: standsAlone
         )
     }
 
@@ -20096,7 +20740,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "⇥",
         title: nil,
         spokenName: LocalizedStringResource("tab"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let leftArrow = ShortcutSpecialKey(
         tag: 1,
@@ -20104,7 +20749,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "←",
         title: nil,
         spokenName: LocalizedStringResource("left arrow"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let rightArrow = ShortcutSpecialKey(
         tag: 2,
@@ -20112,7 +20758,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "→",
         title: nil,
         spokenName: LocalizedStringResource("right arrow"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let upArrow = ShortcutSpecialKey(
         tag: 3,
@@ -20120,7 +20767,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "↑",
         title: nil,
         spokenName: LocalizedStringResource("up arrow"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let downArrow = ShortcutSpecialKey(
         tag: 4,
@@ -20128,7 +20776,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "↓",
         title: nil,
         spokenName: LocalizedStringResource("down arrow"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let escape = ShortcutSpecialKey(
         tag: 5,
@@ -20136,7 +20785,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "⎋",
         title: nil,
         spokenName: LocalizedStringResource("escape"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let returnKey = ShortcutSpecialKey(
         tag: 6,
@@ -20144,7 +20794,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "↩",
         title: nil,
         spokenName: LocalizedStringResource("return"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let delete = ShortcutSpecialKey(
         tag: 7,
@@ -20152,7 +20803,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "⌫",
         title: nil,
         spokenName: LocalizedStringResource("delete"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let forwardDelete = ShortcutSpecialKey(
         tag: 8,
@@ -20160,7 +20812,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "⌦",
         title: nil,
         spokenName: LocalizedStringResource("forward delete"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let home = ShortcutSpecialKey(
         tag: 9,
@@ -20168,7 +20821,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "↖",
         title: nil,
         spokenName: LocalizedStringResource("home"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let end = ShortcutSpecialKey(
         tag: 10,
@@ -20176,7 +20830,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "↘",
         title: nil,
         spokenName: LocalizedStringResource("end"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let pageUp = ShortcutSpecialKey(
         tag: 11,
@@ -20184,7 +20839,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "⇞",
         title: nil,
         spokenName: LocalizedStringResource("page up"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let pageDown = ShortcutSpecialKey(
         tag: 12,
@@ -20192,7 +20848,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "⇟",
         title: nil,
         spokenName: LocalizedStringResource("page down"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let space = ShortcutSpecialKey(
         tag: 13,
@@ -20200,7 +20857,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: nil,
         title: LocalizedStringResource("Space"),
         spokenName: LocalizedStringResource("space"),
-        functionKeyNumber: nil
+        functionKeyNumber: nil,
+        standsAlone: false
     )
     static let f1 = ShortcutSpecialKey(
         tag: 14,
@@ -20208,7 +20866,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F1",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 1
+        functionKeyNumber: 1,
+        standsAlone: true
     )
     static let f2 = ShortcutSpecialKey(
         tag: 15,
@@ -20216,7 +20875,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F2",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 2
+        functionKeyNumber: 2,
+        standsAlone: true
     )
     static let f3 = ShortcutSpecialKey(
         tag: 16,
@@ -20224,7 +20884,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F3",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 3
+        functionKeyNumber: 3,
+        standsAlone: true
     )
     static let f4 = ShortcutSpecialKey(
         tag: 17,
@@ -20232,7 +20893,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F4",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 4
+        functionKeyNumber: 4,
+        standsAlone: true
     )
     static let f5 = ShortcutSpecialKey(
         tag: 18,
@@ -20240,7 +20902,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F5",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 5
+        functionKeyNumber: 5,
+        standsAlone: true
     )
     static let f6 = ShortcutSpecialKey(
         tag: 19,
@@ -20248,7 +20911,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F6",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 6
+        functionKeyNumber: 6,
+        standsAlone: true
     )
     static let f7 = ShortcutSpecialKey(
         tag: 20,
@@ -20256,7 +20920,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F7",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 7
+        functionKeyNumber: 7,
+        standsAlone: true
     )
     static let f8 = ShortcutSpecialKey(
         tag: 21,
@@ -20264,7 +20929,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F8",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 8
+        functionKeyNumber: 8,
+        standsAlone: true
     )
     static let f9 = ShortcutSpecialKey(
         tag: 22,
@@ -20272,7 +20938,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F9",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 9
+        functionKeyNumber: 9,
+        standsAlone: true
     )
     static let f10 = ShortcutSpecialKey(
         tag: 23,
@@ -20280,7 +20947,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F10",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 10
+        functionKeyNumber: 10,
+        standsAlone: true
     )
     static let f11 = ShortcutSpecialKey(
         tag: 24,
@@ -20288,7 +20956,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F11",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 11
+        functionKeyNumber: 11,
+        standsAlone: true
     )
     static let f12 = ShortcutSpecialKey(
         tag: 25,
@@ -20296,7 +20965,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F12",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 12
+        functionKeyNumber: 12,
+        standsAlone: true
     )
     static let f13 = ShortcutSpecialKey(
         tag: 26,
@@ -20304,7 +20974,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F13",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 13
+        functionKeyNumber: 13,
+        standsAlone: true
     )
     static let f14 = ShortcutSpecialKey(
         tag: 27,
@@ -20312,7 +20983,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F14",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 14
+        functionKeyNumber: 14,
+        standsAlone: true
     )
     static let f15 = ShortcutSpecialKey(
         tag: 28,
@@ -20320,7 +20992,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F15",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 15
+        functionKeyNumber: 15,
+        standsAlone: true
     )
     static let f16 = ShortcutSpecialKey(
         tag: 29,
@@ -20328,7 +21001,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F16",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 16
+        functionKeyNumber: 16,
+        standsAlone: true
     )
     static let f17 = ShortcutSpecialKey(
         tag: 30,
@@ -20336,7 +21010,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F17",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 17
+        functionKeyNumber: 17,
+        standsAlone: true
     )
     static let f18 = ShortcutSpecialKey(
         tag: 31,
@@ -20344,7 +21019,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F18",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 18
+        functionKeyNumber: 18,
+        standsAlone: true
     )
     static let f19 = ShortcutSpecialKey(
         tag: 32,
@@ -20352,7 +21028,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F19",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 19
+        functionKeyNumber: 19,
+        standsAlone: true
     )
     static let f20 = ShortcutSpecialKey(
         tag: 33,
@@ -20360,7 +21037,8 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         glyph: "F20",
         title: nil,
         spokenName: nil,
-        functionKeyNumber: 20
+        functionKeyNumber: 20,
+        standsAlone: true
     )
 
     static let all: [ShortcutSpecialKey] = [
@@ -20418,19 +21096,22 @@ struct ShortcutSpecialKey: Hashable, Sendable {
         let title: LocalizedStringResource?
         let spokenName: LocalizedStringResource?
         let functionKeyNumber: Int?
+        let standsAlone: Bool
 
         init(
             name: String,
             glyph: String?,
             title: LocalizedStringResource?,
             spokenName: LocalizedStringResource?,
-            functionKeyNumber: Int?
+            functionKeyNumber: Int?,
+            standsAlone: Bool
         ) {
             self.name = name
             self.glyph = glyph
             self.title = title
             self.spokenName = spokenName
             self.functionKeyNumber = functionKeyNumber
+            self.standsAlone = standsAlone
         }
     }
 }

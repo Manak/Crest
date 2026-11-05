@@ -10,47 +10,51 @@ for the stable release procedure.
 
 ## Maintained fork
 
-Crest maintains a patch fork in this repository. The upstream source archive,
-ungoogled revisions, Crest patches, overlay, and C ABI headers form one versioned
-engine definition. The expanded source and compiled output live in a persistent
-workspace outside the checkout, by default `~/Dev/CrestChromium`. They are build
-products, not the source of truth. Keeping the fork here lets a change to the
-engine contract and its Swift caller be reviewed together.
+Crest maintains a patch fork of plain Chromium in this repository. Google's
+official source archive, Crest's patches, the overlay, and the C ABI headers form
+one versioned engine definition. The expanded source and compiled output live in
+a persistent workspace outside the checkout, by default `~/Dev/CrestChromium`.
+They are build products, not the source of truth. Keeping the fork here lets a
+change to the engine contract and its Swift caller be reviewed together.
 
-`fork.json` defines the upstream repository, integration branch, and
-automatic release channel. `source.lock.json` pins the complete upstream recipe;
-`host-inputs.json` records the inputs and outputs of Crest's host patch. A new
-upstream release must apply every existing Crest hunk without fuzz. A conflict,
-new toolchain requirement, failed build, or failed smoke check stops publication.
-Milestone changes require an explicit `--allow-major` update and manual review.
+`fork.json` defines the upstream release channel, integration branch, and
+automatic release channel: Crest follows Chrome's Stable releases for Mac.
+`source.lock.json` pins the complete upstream recipe; `host-inputs.json` records
+the inputs and outputs of Crest's patches. A new upstream release must apply
+every existing Crest hunk without fuzz. A conflict, new toolchain requirement,
+failed build, or failed smoke check stops publication. Milestone changes require
+an explicit `--allow-major` update and manual review.
 
-See [Fork maintenance](ForkMaintenance.md) for the workspace commands, build Mac
-setup, CI switches, and experimental release procedure.
+See [Fork maintenance](ForkMaintenance.md) for the workspace commands, each Crest
+patch and its reason, the review of browser requests each milestone needs, build
+Mac setup, CI switches, and the experimental release procedure.
 
-`source.lock.json` pins the Chromium archive, ungoogled macOS revisions, upstream
-patches, and Crest build adjustments. It records source preparation inputs. It
-does not identify a released engine artifact or establish host capabilities.
+`source.lock.json` pins the Chromium archive and its checksum, the toolchain
+dependencies preparation fetches, the CIPD tool digests, Crest's build
+adjustments and GN arguments, and the performance inputs. It records source
+preparation inputs. It does not identify a released engine artifact or establish
+host capabilities.
 
 The source build requires Apple Silicon, Xcode with the matching Metal toolchain,
-Python 3.11 or newer with `schema`, Ninja, and Go. Keep the Chromium checkout and
-products outside Crest. The source archive alone expands to roughly 10 GB;
-toolchains and compilation products require additional space.
-
-Clone the `ungoogledMac.repository` at the exact revision in the lock and initialize
-its `ungoogled-chromium` submodule. Use a task-specific Python environment with
-`schema` and `ninja` installed, and put that environment's `bin` directory on PATH.
-Then run:
+Python 3.11 or newer, Ninja, and Go. Keep the Chromium checkout and products
+outside Crest. The source archive alone expands to roughly 13 GB; toolchains and
+compilation products require additional space. Use a task-specific Python
+environment with `ninja` installed, and put that environment's `bin` directory
+on PATH. Then run:
 
 ```sh
-python Scripts/control-plane/prepare-chromium.py --upstream /absolute/upstream/checkout
+python Scripts/control-plane/prepare-chromium.py \
+  --source /absolute/chromium/src --downloads /absolute/download-cache
 python Scripts/control-plane/build-chromium-baseline.py \
-  --source /absolute/upstream/checkout/build/src --jobs 4 --min-free-gib 15
+  --source /absolute/chromium/src --jobs 4 --min-free-gib 15
 ```
 
-Preparation refuses an existing `build/src` directory. `--verify-only` validates
-the pinned inputs without modifying an existing preparation. If preparation fails,
-inspect that step before resuming it; do not run upstream `build.sh` over existing
-work because it removes the output directory.
+Preparation downloads and verifies the archive, unpacks it, fetches Chromium's
+own clang, Rust, libclang and Node for an Apple Silicon host at the digests the
+archive's `DEPS` pins, installs the CIPD packages the lock pins, applies Crest's
+build adjustments, and generates the build. It refuses an existing source
+directory. `--verify-only` checks a prepared source against the lock without
+modifying it.
 
 The development build uses a non-component link, Apple's linker, and disabled
 precompiled headers. It explicitly disables `dcheck_always_on` and
@@ -68,16 +72,7 @@ The development configuration still omits PGO and ThinLTO. Performance evaluatio
 must first compare the same engine configuration in the stock and native UI hosts,
 then compare a shipping configuration against a matching browser version.
 
-The bindgen patch uses Apple's linker for Xcode SDK TAPI
-compatibility. Preparation also supplies the loader-relative LLVM alias omitted
-from the pinned Rust archive, checks out bindgen at the revision Chromium pins,
-and retrieves the exact esbuild and TypeScript compiler CIPD packages Chromium
-names. Ungoogled points DevTools and WebUI at Homebrew's tools instead;
-`pinned-host-tools.patch` points them back at those pinned packages. These are
-build adjustments, not browser-behavior changes.
-
-The pinned LLD 23.1.0 cannot parse the `arm64e.x1` targets in the Xcode 27
-macOS SDK's `libSystem.tbd`. Use the macOS 26.5 SDK for the performance preset;
+The performance preset is built against the macOS 26.5 SDK, which the lock pins;
 it may also be installed under Command Line Tools even when Xcode has a newer
 SDK. This selects the engine SDK without changing the system Xcode selection.
 The performance preset enables official-build optimizations, PGO, ThinLTO with
@@ -309,15 +304,13 @@ popup of its own, including any page action, reports itself unavailable instead.
 A private window reads the same pinned list narrowed to the extensions enabled
 in incognito.
 
-The row prepares the Space's engine profile itself, so the tiles are there on
-the first Start Page of a launch rather than only once something has been opened
-in the Space. Which Spaces it may prepare is decided by `(spaceID, profileID)`
-against the store family that owns the window it is drawn in, not by identity
-against one application-wide list: a window publishes its own Spaces first, and
-the list would still be empty at that point. A Space belonging to another family,
-such as a borrowed settings workspace or a private window with no persistent
-engine profile of its own, is refused, and so is a locked Space. The preparation is
-idempotent, so it can be asked on every appearance and every Space change.
+The row has the core list the Space's extensions (`ListExtensions`), which
+loads the Space's engine profile, so the tiles are there on the first Start Page
+of a launch rather than only once something has been opened in the Space. The
+core decides which Spaces it lists: one of the person's own Spaces, never a
+private window's, which has no persistent engine profile of its own, a locked
+Space or one being deleted. The listing is idempotent, so it can be asked on
+every appearance and every Space change.
 
 An extension that is still enabled in the registry but whose directory is gone
 is treated as unavailable rather than broken: it contributes no tile and no
@@ -345,32 +338,40 @@ its popup, is unloaded or has its host destroyed.
 
 Crest reuses its original extension artwork, badge, pinning, toolbar tiles,
 Site Controls grid, and Space-selection list. `Apple/Extensions/Presentation`
-contains those engine-independent views; `ChromiumExtensionStore` supplies
-profile-scoped Chromium state and native install presentation. Registry, action,
-toolbar, and icon observers refresh the UI without polling. Pinning is stored in
-Chromium's per-profile toolbar preferences.
+contains those engine-independent views; `ChromiumExtensionStore` supplies the
+toolbar's Chromium state and the native menus, confirmations and install review.
+Which Spaces may change or receive an extension, where a copy may go and which
+consent answers a later question are the core's (see "Extensions" in the
+control plane's page lifecycle). Registry, action, toolbar, and icon observers
+refresh the UI without polling, and the binding reports each listed profile's
+extensions to the core again when they change. Pinning is stored in Chromium's
+per-profile toolbar preferences.
 
 On a Chrome Web Store listing, the listing's own install button reads **Add to
 Crest** and runs Crest's install; **Install Extension…** in Site Controls does
 the same thing from the toolbar. Both have the Space's engine profile download
 the CRX3 package from Google's update service with the request Chromium's own
-Web Store installer makes, which the ungoogled baseline empties; Crest sets no
-size or format limits of its own, and closing the review stops the download.
+Web Store installer makes, so one download can install into every Space the
+person picks; Crest sets no size or format limits of its own, and closing the
+review stops the download.
 Chromium verifies the publisher proof and
 expected ID before Crest shows the original install review layout.
 The review displays Chromium's permission warnings and offers website-access
 withholding where supported. Required API permissions use Chromium's install
 consent semantics rather than the retired WebKit permission emulation.
 Selected additional Spaces install the same downloaded package, each with its own
-signature check and separate extension data. Consent is reused only when the
-verified extension identity, version, and warnings match. Locked, deleted, or
-replaced Space profiles cannot receive a copy.
+signature check and separate extension data. The core reuses consent only when
+the verified extension identity, version, and warnings match, and a locked,
+deleted, or replaced Space profile cannot receive a copy. The package download
+and each install run in the portable binding (`crest_engine_store.cc`), and the
+question Chromium's installer asks goes to the core rather than to a window.
 
 The native Extensions settings pane retains Space selection, extension artwork,
 disclosure rows, enable/remove controls, options pages, and copying to other
 Spaces. Chromium's manager is available for detailed permissions, developer-mode
-unpacked installs, and engine-specific controls. The store's own Add to Chrome
-button is inert in the ungoogled baseline, so Crest takes it over: a script in
+unpacked installs, and engine-specific controls. Crest takes over the store's
+own Add to Chrome button, so an install goes through Crest's review and Spaces
+rather than Chromium's Views dialog: a script in
 an isolated world, injected only into `chromewebstore.google.com` documents in a
 regular profile, relabels that button **Add to Crest**, **Added to Crest** or
 **Remove from Crest** from Chromium's own registry and routes a click into the
@@ -383,8 +384,8 @@ only the extension the listing's address names, so a store page cannot name
 another one. The same script releases the store's desktop minimum width, which
 is wider than a Crest page card and would otherwise push the listing and its
 button past the card's edge, and hides the store's prompts to switch to Chrome.
-Crest mode also restores Chromium's declared-URL extension update requests;
-signature and permission checks remain owned by Chromium.
+Extensions update through Chromium's own updater; signature and permission
+checks remain owned by Chromium.
 
 An extension's tab groups, made with `chrome.tabs.group` and `chrome.tabGroups`,
 live in the tab strip of the Browser that holds the Space's pages, and Crest
@@ -406,13 +407,6 @@ syncs it. Once the folder's tabs have pages again after a launch, the group is
 made again under the same token, as Chrome restores a group with its tabs.
 A private window's groups are kept in memory only. Folder membership grants
 an extension nothing.
-
-`chrome.identity.getRedirectURL()` and `launchWebAuthFlow` use Chromium's own
-`https://<extension ID>.chromiumapp.org/` address. Domain substitution had
-replaced that host with a name no sign-in provider registers. An extension
-that signs back in on its own at startup, as Claude does, therefore asked for
-a sign-in at every launch. As in Chrome, the flow catches the redirect when its
-navigation starts.
 
 Companion apps such as Apple's Passwords helper and 1Password register their
 native-messaging hosts for Google Chrome and do not know Crest's directories. In
@@ -550,8 +544,8 @@ Stable promotion still needs a signed upgrade from each supported previous
 composition, a restart that preserves profiles and session data, and the
 Sparkle update/relaunch path. Exercise permissions, download recovery, and
 notification delivery through the native app. A headless engine smoke check
-does not validate those host integrations. Keep the Google-free protection
-and Web Push limitations in the Help Center accurate when publishing.
+does not validate those host integrations. Keep the Help Center's Safe Browsing,
+Web Push and protected video limits accurate when publishing.
 
 Desktop releases check for the engine matching their selected commit.
 If missing, `Ensure Chromium engine` builds it on the registered Apple Silicon
